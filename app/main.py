@@ -1,75 +1,69 @@
+# /app/main.py
+
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from threading import Thread
 
 from fastapi import FastAPI
 
-from core.config import Settings
-from core.rabbitmq_client import RabbitMQClient
-from routers.example_router import router as example_router
+from app.core.config import Settings
+from app.core.rabbitmq_client import RabbitMQClient
+from app.services.applier import consume_jobs_interleaved
 
+from motor.motor_asyncio import AsyncIOMotorClient
+
+# Configura il logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Load settings
+# Carica le impostazioni
 settings = Settings()
 
-
-def message_callback(ch, method, properties, body):
-    """
-    Callback function to process each message from RabbitMQ.
-
-    Parameters:
-    - ch: Channel - The RabbitMQ channel
-    - method: - RabbitMQ method frame
-    - properties: - RabbitMQ properties
-    - body: bytes - The message content
-    """
-    try:
-        logging.info(f"Received message: {body.decode()}")
-        # Custom message processing logic here
-    except Exception as e:
-        logging.error(f"Error processing message: {e}")
-        # Optionally, add message requeue logic here
-
-
-# Global instance of RabbitMQClient
+# Crea un'istanza del client RabbitMQ
 rabbit_client = RabbitMQClient(
     rabbitmq_url=settings.rabbitmq_url,
     queue="my_queue",
-    callback=message_callback
+    callback=lambda ch, method, properties, body: print(f"Message: {body.decode()}")
 )
 
+# Crea un'istanza del client MongoDB
+mongo_client = AsyncIOMotorClient(settings.mongodb)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifespan context manager to manage the startup and shutdown events for FastAPI.
-    Starts and stops the RabbitMQ client connection.
+    Context manager per l'avvio e lo spegnimento delle risorse.
     """
-    # Start the RabbitMQ client I/O loop in a separate thread
-    rabbit_thread = Thread(target=rabbit_client.start)
+    # Avvia il client RabbitMQ in un thread separato
+    rabbit_thread = Thread(target=rabbit_client.start, daemon=True)
     rabbit_thread.start()
-    logging.info("RabbitMQ client started in background thread")
+    logging.info("RabbitMQ client started")
 
-    yield  # Application will run while paused here
+    # Avvia il consumatore di job come task di background
+    loop = asyncio.get_event_loop()
+    job_consumer_task = asyncio.create_task(consume_jobs_interleaved(mongo_client))
+    logging.info("Job consumer started")
 
-    # Stop the RabbitMQ client I/O loop and wait for thread to join
-    rabbit_client.stop()
-    rabbit_thread.join()
-    logging.info("RabbitMQ client connection closed")
+    try:
+        yield
+    finally:
+        # Ferma il client RabbitMQ e altre risorse
+        rabbit_client.stop()
+        rabbit_thread.join()
+        logging.info("RabbitMQ client stopped")
 
+        # Cancella il task del consumatore di job
+        job_consumer_task.cancel()
+        try:
+            await job_consumer_task
+        except asyncio.CancelledError:
+            logging.info("Job consumer task cancelled")
+        
+        # Chiudi il client MongoDB
+        mongo_client.close()
+        logging.info("MongoDB client closed")
 
-# Initialize FastAPI with the lifespan manager
+# Inizializza l'app FastAPI con il context manager di lifespan
 app = FastAPI(lifespan=lifespan)
 
-
-# Example FastAPI route for testing
-@app.get("/")
-async def root():
-    """
-    Basic root endpoint to test if the service is running.
-    """
-    return {"message": "coreService is up and running!"}
-
-
-app.include_router(example_router)
+# Non aggiungere route o router

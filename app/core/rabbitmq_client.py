@@ -1,3 +1,6 @@
+# app/core/rabbitmq_client.py
+
+
 import logging
 import time
 from typing import Callable, Any, Optional
