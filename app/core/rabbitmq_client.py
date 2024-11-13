@@ -4,7 +4,7 @@
 import logging
 import time
 from typing import Callable, Any, Optional
-
+import json
 import pika
 import pika.channel
 import pika.frame
@@ -98,3 +98,25 @@ class RabbitMQClient:
             self.connection.close()
             self.connection.ioloop.stop()
             logging.info("RabbitMQ connection closed and I/O loop stopped")
+
+    def publish_message(self, message: dict) -> None:
+        """
+        Publishes a JSON-encoded message to the RabbitMQ queue.
+
+        Args:
+            message (dict): The message to send to the queue.
+        """
+        if self.channel is None or not self.channel.is_open:
+            logging.error("Cannot publish message: RabbitMQ channel is not open.")
+            return
+
+        try:
+            message_body = json.dumps(message)
+            self.channel.basic_publish(
+                exchange='',
+                routing_key=self.queue,
+                body=message_body
+            )
+            logging.info(f"Published message to queue '{self.queue}': {message}")
+        except Exception as e:
+            logging.error(f"Failed to publish message to queue '{self.queue}': {e}")
