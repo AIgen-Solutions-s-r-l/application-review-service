@@ -1,15 +1,14 @@
-# /app/services/applier.py
-
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
+from bson import ObjectId
 
-# Funzione per consumare le liste in modo interlacciato
+# Function to consume job lists in an interleaved manner with enhanced error handling and ObjectId support
 async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
     try:
         print("Connecting to MongoDB...")
         
-        # Recupera tutte le liste di lavoro da MongoDB
+        # Retrieve all job lists from MongoDB
         db = mongo_client['db_name']
         collection = db['jobs_to_apply_per_user']
         
@@ -19,8 +18,8 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
         
         print(f"Total job lists retrieved: {len(job_lists)}")
         
-        # Inizializza gli indici di lettura per ogni lista
-        pointers = {doc["_id"]: 0 for doc in job_lists}
+        # Initialize reading pointers for each list
+        pointers = {doc["_id"]: 0 for doc in job_lists if "_id" in doc and "jobs" in doc and "user_id" in doc}
         print(f"Initialized pointers for job lists: {pointers}")
         
         while pointers:
@@ -28,45 +27,62 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
             to_remove = []
             
             for doc in job_lists:
-                doc_id = doc["_id"]
-                user_id = doc["user_id"]
-                jobs = doc["jobs"]
-                pointer = pointers.get(doc_id, 0)
-                
-                print(f"Processing document ID: {doc_id}, User ID: {user_id}, Pointer: {pointer}")
-                
-                if pointer < len(jobs):
-                    # Consuma il prossimo lavoro
-                    job = jobs[pointer]
-                    print(f"Processing job {job['job_id']} for user {user_id}")
-                    
-                    # Simula il processo di applicazione al lavoro
-                    await process_job(user_id, job)
-                    
-                    # Incrementa il puntatore
-                    pointers[doc_id] += 1
-                else:
-                    print(f"All jobs for document {doc_id} have been processed.")
-                    # Tutti i lavori per questo documento sono stati consumati
-                    to_remove.append(doc_id)
+                try:
+                    # Validate and extract document fields
+                    doc_id = doc["_id"]
+                    user_id = doc["user_id"]
+                    jobs = doc["jobs"]
+                    pointer = pointers.get(doc_id, 0)
+
+                    # Ensure doc_id is a valid ObjectId instance
+                    if not isinstance(doc_id, ObjectId):
+                        raise ValueError(f"Invalid ObjectId: {doc_id}")
+
+                    print(f"Processing document ID: {doc_id}, User ID: {user_id}, Pointer: {pointer}")
+
+                    if pointer < len(jobs):
+                        # Process the next job
+                        job = jobs[pointer]
+                        print(f"Processing job {job['job_id']} for user {user_id}")
+
+                        # Simulate job application process
+                        await process_job(user_id, job)
+
+                        # Increment the pointer
+                        pointers[doc_id] += 1
+                    else:
+                        print(f"All jobs for document {doc_id} have been processed.")
+                        # All jobs for this document have been consumed
+                        to_remove.append(doc_id)
+
+                except KeyError as ke:
+                    print(f"KeyError in document {doc.get('_id')}: {ke}")
+                except Exception as e:
+                    print(f"Error processing document {doc.get('_id')}: {str(e)}")
             
-            # Rimuovi documenti consumati completamente
+            # Remove fully processed documents
             for doc_id in to_remove:
-                print(f"Removing completed document ID: {doc_id}")
-                await collection.delete_one({"_id": doc_id})
-                del pointers[doc_id]
+                try:
+                    print(f"Removing completed document ID: {doc_id}")
+                    await collection.delete_one({"_id": doc_id})
+                    del pointers[doc_id]
+                except Exception as e:
+                    print(f"Error removing document {doc_id}: {str(e)}")
             
-            # Fai una pausa per evitare loop infinito in caso di operazioni lunghe
+            # Pause to avoid infinite loop in case of long operations
             await asyncio.sleep(0.1)
         
         print("All jobs have been processed.")
     
     except Exception as e:
-        print(f"Error occurred: {e}")
+        print(f"Error occurred in main processing loop: {e}")
         raise HTTPException(status_code=500, detail="Error while consuming jobs.")
 
-# Simulazione della funzione di elaborazione del lavoro
+# Simulated job processing function with additional logging
 async def process_job(user_id, job):
-    print(f"Applying to job {job['title']} (Job ID: {job['job_id']}) for user {user_id}")
-    await asyncio.sleep(0.5)  # Simula una richiesta o elaborazione lunga
-    print(f"Job {job['job_id']} for user {user_id} has been processed.")
+    try:
+        print(f"Applying to job {job['title']} (Job ID: {job['job_id']}) for user {user_id}")
+        await asyncio.sleep(0.5)  # Simulate a lengthy request or processing
+        print(f"Job {job['job_id']} for user {user_id} has been processed.")
+    except Exception as e:
+        print(f"Error while processing job {job['job_id']} for user {user_id}: {e}")
