@@ -2,6 +2,49 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
 from bson import ObjectId
+from app.core.config import Settings  # Only import Settings
+from app.core.rabbitmq_client import RabbitMQClient
+
+# Initialize settings and RabbitMQ client
+settings = Settings()
+rabbitmq_client = RabbitMQClient(settings.rabbitmq_url, settings.career_docs_queue, callback=None)
+rabbitmq_client.connect()
+
+async def notify_career_docs(user_id: str, job_id: str):
+    """
+    Publishes a message to the career_docs queue after a job is processed.
+
+    Args:
+        user_id (str): The ID of the user associated with the job.
+        job_id (str): The ID of the processed job.
+    """
+    message = {
+        "user_id": user_id,
+        "job_id": job_id,
+        "status": "processed"
+    }
+    try:
+        # Connect to RabbitMQ if the channel isn't open
+        if not rabbitmq_client.channel or not rabbitmq_client.channel.is_open:
+            print("Connecting to RabbitMQ...")
+            rabbitmq_client.connect()
+            await asyncio.sleep(1)  # Brief sleep to allow connection establishment
+        
+        # Wait until the RabbitMQ channel is open, up to a maximum wait time
+        max_wait_time = 10  # Adjust timeout as needed
+        wait_time = 0
+        while not rabbitmq_client.channel or not rabbitmq_client.channel.is_open:
+            if wait_time >= max_wait_time:
+                raise RuntimeError("RabbitMQ channel did not open in time.")
+            print("Waiting for RabbitMQ channel to open...")
+            await asyncio.sleep(1)
+            wait_time += 1
+
+        # Publish the message once the channel is open
+        rabbitmq_client.publish_message(message)
+        print(f"Notification sent for user {user_id}, job {job_id}")
+    except Exception as e:
+        print(f"Failed to send notification for user {user_id}, job {job_id}: {str(e)}")
 
 async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
     try:
@@ -14,24 +57,13 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
         cursor = collection.find()
         job_lists = await cursor.to_list(length=None)
         
-        print(f"Total job lists retrieved: {len(job_lists)}")
-        
         pointers = {
             doc["_id"]: 0
             for doc in job_lists
             if "_id" in doc and "user_id" in doc and "jobs" in doc
         }
-        
-        missing_keys_docs = [
-            doc for doc in job_lists
-            if "_id" not in doc or "user_id" not in doc or "jobs" not in doc
-        ]
-        
-        if missing_keys_docs:
-            print(f"Skipping {len(missing_keys_docs)} documents with missing keys.")
 
         while pointers:
-            print(f"Current pointers state: {pointers}")
             to_remove = []
             
             for doc in job_lists:
@@ -44,19 +76,18 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
                     jobs = doc["jobs"]
                     pointer = pointers.get(doc_id, 0)
 
-                    # Ensure doc_id is a valid ObjectId instance
-                    if not isinstance(doc_id, ObjectId):
-                        raise ValueError(f"Invalid ObjectId: {doc_id}")
-
-                    print(f"Processing document ID: {doc_id}, User ID: {user_id}, Pointer: {pointer}")
-
                     if pointer < len(jobs):
                         job = jobs[pointer]
                         print(f"Processing job {job.get('job_id', 'unknown')} for user {user_id}")
+                        
+                        # Process the job
                         await process_job(user_id, job)
+
+                        # Notify the career_docs service
+                        await notify_career_docs(user_id, job.get('job_id', 'unknown'))
+                        
                         pointers[doc_id] += 1
                     else:
-                        print(f"All jobs for document {doc_id} have been processed.")
                         to_remove.append(doc_id)
 
                 except KeyError as ke:
@@ -66,7 +97,6 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
             
             for doc_id in to_remove:
                 try:
-                    print(f"Removing completed document ID: {doc_id}")
                     await collection.delete_one({"_id": doc_id})
                     del pointers[doc_id]
                 except Exception as e:
