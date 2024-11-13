@@ -22,7 +22,7 @@ settings = Settings()
 # Crea un'istanza del client RabbitMQ
 rabbit_client = RabbitMQClient(
     rabbitmq_url=settings.rabbitmq_url,
-    queue="my_queue",
+    queue=settings.career_docs_queue,
     callback=lambda ch, method, properties, body: print(f"Message: {body.decode()}")
 )
 
