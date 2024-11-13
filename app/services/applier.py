@@ -31,7 +31,7 @@ async def notify_career_docs(user_id: str, job_id: str):
             await asyncio.sleep(1)  # Brief sleep to allow connection establishment
         
         # Wait until the RabbitMQ channel is open, up to a maximum wait time
-        max_wait_time = 10  # Adjust timeout as needed
+        max_wait_time = 100  # Adjust timeout as needed
         wait_time = 0
         while not rabbitmq_client.channel or not rabbitmq_client.channel.is_open:
             if wait_time >= max_wait_time:
