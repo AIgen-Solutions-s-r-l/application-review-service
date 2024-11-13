@@ -24,11 +24,22 @@ async def notify_career_docs(user_id: str, job_id: str):
         "status": "processed"
     }
     try:
-        # Wait until the RabbitMQ channel is open
+        # Connect to RabbitMQ if the channel isn't open
+        if not rabbitmq_client.channel or not rabbitmq_client.channel.is_open:
+            print("Connecting to RabbitMQ...")
+            rabbitmq_client.connect()
+            await asyncio.sleep(1)  # Brief sleep to allow connection establishment
+        
+        # Wait until the RabbitMQ channel is open, up to a maximum wait time
+        max_wait_time = 10  # Adjust timeout as needed
+        wait_time = 0
         while not rabbitmq_client.channel or not rabbitmq_client.channel.is_open:
+            if wait_time >= max_wait_time:
+                raise RuntimeError("RabbitMQ channel did not open in time.")
             print("Waiting for RabbitMQ channel to open...")
             await asyncio.sleep(1)
-        
+            wait_time += 1
+
         # Publish the message once the channel is open
         rabbitmq_client.publish_message(message)
         print(f"Notification sent for user {user_id}, job {job_id}")

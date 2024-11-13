@@ -99,16 +99,26 @@ class RabbitMQClient:
             self.connection.ioloop.stop()
             logging.info("RabbitMQ connection closed and I/O loop stopped")
 
-    def publish_message(self, message: dict) -> None:
+    def publish_message(self, message: dict, timeout: int = 10) -> None:
         """
-        Publishes a JSON-encoded message to the RabbitMQ queue.
+        Publishes a JSON-encoded message to the RabbitMQ queue, with a timeout for channel readiness.
 
         Args:
             message (dict): The message to send to the queue.
+            timeout (int): Maximum time (in seconds) to wait for the channel to be ready.
         """
         if self.channel is None or not self.channel.is_open:
-            logging.error("Cannot publish message: RabbitMQ channel is not open.")
-            return
+            print("Connecting to RabbitMQ...")
+            self.connect()
+            start_time = time.time()
+            
+            while (self.channel is None or not self.channel.is_open) and (time.time() - start_time < timeout):
+                print("Waiting for RabbitMQ channel to open...")
+                time.sleep(1)
+            
+            if self.channel is None or not self.channel.is_open:
+                print("Cannot publish message: RabbitMQ channel did not open in time.")
+                return
 
         try:
             message_body = json.dumps(message)
@@ -117,6 +127,6 @@ class RabbitMQClient:
                 routing_key=self.queue,
                 body=message_body
             )
-            logging.info(f"Published message to queue '{self.queue}': {message}")
+            print(f"Published message to queue '{self.queue}': {message}")
         except Exception as e:
-            logging.error(f"Failed to publish message to queue '{self.queue}': {e}")
+            print(f"Failed to publish message to queue '{self.queue}': {e}")
