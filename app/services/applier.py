@@ -10,9 +10,12 @@ settings = Settings()
 rabbitmq_client = RabbitMQClient(settings.rabbitmq_url, settings.career_docs_queue, callback=None)
 rabbitmq_client.connect()
 
+import pika
+import json
+
 async def notify_career_docs(user_id: str, job_id: str):
     """
-    Publishes a message to the career_docs queue after a job is processed.
+    Publishes a message to the career_docs queue after a job is processed using a blocking connection.
 
     Args:
         user_id (str): The ID of the user associated with the job.
@@ -24,25 +27,18 @@ async def notify_career_docs(user_id: str, job_id: str):
         "status": "processed"
     }
     try:
-        # Connect to RabbitMQ if the channel isn't open
-        if not rabbitmq_client.channel or not rabbitmq_client.channel.is_open:
-            print("Connecting to RabbitMQ...")
-            rabbitmq_client.connect()
-            await asyncio.sleep(1)  # Brief sleep to allow connection establishment
-        
-        # Wait until the RabbitMQ channel is open, up to a maximum wait time
-        max_wait_time = 100  # Adjust timeout as needed
-        wait_time = 0
-        while not rabbitmq_client.channel or not rabbitmq_client.channel.is_open:
-            if wait_time >= max_wait_time:
-                raise RuntimeError("RabbitMQ channel did not open in time.")
-            print("Waiting for RabbitMQ channel to open...")
-            await asyncio.sleep(1)
-            wait_time += 1
-
-        # Publish the message once the channel is open
-        rabbitmq_client.publish_message(message)
+        # Use a blocking connection to RabbitMQ for testing
+        connection = pika.BlockingConnection(pika.URLParameters(settings.rabbitmq_url))
+        channel = connection.channel()
+        channel.queue_declare(queue=settings.career_docs_queue)
+        message_body = json.dumps(message)
+        channel.basic_publish(
+            exchange='',
+            routing_key=settings.career_docs_queue,
+            body=message_body
+        )
         print(f"Notification sent for user {user_id}, job {job_id}")
+        connection.close()
     except Exception as e:
         print(f"Failed to send notification for user {user_id}, job {job_id}: {str(e)}")
 
