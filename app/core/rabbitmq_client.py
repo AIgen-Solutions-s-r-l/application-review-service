@@ -1,132 +1,84 @@
-# app/core/rabbitmq_client.py
-
-
-import logging
-import time
-from typing import Callable, Any, Optional
 import json
 import pika
-import pika.channel
-import pika.frame
+from loguru import logger
+from typing import Optional, Callable
 
 
 class RabbitMQClient:
     """
-    RabbitMQ Client to handle asynchronous connections, publishing, and consuming of messages.
-    Uses pika.SelectConnection for asynchronous communication with RabbitMQ.
+    A utility class for managing RabbitMQ connections, channels, and basic message operations.
     """
 
-    def __init__(self, rabbitmq_url: str, queue: str,
-                 callback: Callable[[Any, pika.spec.Basic.Deliver, pika.spec.BasicProperties, bytes], None]) -> None:
+    def __init__(self, rabbitmq_url: str) -> None:
         """
-        Initializes the RabbitMQClient with a connection URL, queue name, and message callback function.
+        Initializes the RabbitMQClient with a connection URL.
         """
         self.rabbitmq_url = rabbitmq_url
-        self.queue = queue
-        self.callback = callback
-        self.connection: Optional[pika.SelectConnection] = None
-        self.channel: Optional[pika.channel.Channel] = None
-        self.should_reconnect = False  # Flag to control reconnection
+        self.connection: Optional[pika.BlockingConnection] = None
+        self.channel: Optional[pika.adapters.blocking_connection.BlockingChannel] = None
 
     def connect(self) -> None:
         """
-        Establish an asynchronous connection to RabbitMQ and declare the queue.
+        Connects to RabbitMQ using the BlockingConnection and opens a channel.
         """
-        logging.info("Connecting to RabbitMQ")
-        try:
-            self.connection = pika.SelectConnection(
-                pika.URLParameters(self.rabbitmq_url),
-                on_open_callback=self.on_connection_open,
-                on_open_error_callback=self.on_connection_open_error,
-                on_close_callback=self.on_connection_closed
-            )
-        except Exception as e:
-            logging.error(f"Connection setup failed: {e}")
-            self.schedule_reconnect()
+        if not self.connection or self.connection.is_closed:
+            parameters = pika.URLParameters(self.rabbitmq_url)
+            self.connection = pika.BlockingConnection(parameters)
+            self.channel = self.connection.channel()
+            logger.info("Connected to RabbitMQ")
 
-    def on_connection_open(self, connection: pika.SelectConnection) -> None:
-        logging.info("RabbitMQ connection opened")
-        connection.channel(on_open_callback=self.on_channel_open)
-
-    def on_connection_open_error(self, connection: pika.SelectConnection, error: Exception) -> None:
-        logging.error(f"Failed to open connection: {error}")
-        self.schedule_reconnect()
-
-    def on_connection_closed(self, connection: pika.SelectConnection, reason: Any) -> None:
-        logging.warning(f"Connection closed: {reason}")
-        if self.should_reconnect:
-            self.schedule_reconnect()
-
-    def on_channel_open(self, channel: pika.channel.Channel) -> None:
-        logging.info("RabbitMQ channel opened")
-        self.channel = channel
-        self.channel.queue_declare(queue=self.queue, callback=self.on_queue_declared)
-
-    def on_queue_declared(self, frame: pika.frame.Method) -> None:
-        logging.info(f"Queue '{self.queue}' declared")
-        self.channel.basic_consume(queue=self.queue, on_message_callback=self.callback, auto_ack=True)
-        logging.info("Started consuming messages")
-
-    def schedule_reconnect(self, delay: int = 5) -> None:
+    def ensure_queue(self, queue: str, durable: bool = False) -> None:
         """
-        Schedule reconnection attempt after a delay.
-        """
-        logging.info(f"Reconnecting to RabbitMQ in {delay} seconds")
-        self.should_reconnect = True
-        if self.connection and self.connection.is_closing:
-            self.connection.ioloop.call_later(delay, self.connect)
-        else:
-            time.sleep(delay)  # Fallback for manual control if ioloop not started
+        Declares a queue to ensure it exists.
 
-    def start(self) -> None:
+        Parameters:
+            queue (str): The queue name.
+            durable (bool): If True, makes the queue durable.
         """
-        Start the connection's I/O loop.
+        if self.channel and self.channel.is_open:
+            self.channel.queue_declare(queue=queue, durable=durable)
+            logger.info(f"Queue '{queue}' ensured (declared with durability={durable})")
+
+    def publish_message(self, queue: str, message: dict, persistent: bool = False) -> None:
+        """
+        Publishes a JSON-encoded message to the specified queue.
+
+        Parameters:
+            queue (str): The queue to which the message will be published.
+            message (dict): The message content as a dictionary.
+            persistent (bool): If True, makes the message persistent.
         """
         self.connect()
-        if self.connection:
-            try:
-                self.connection.ioloop.start()
-            except KeyboardInterrupt:
-                self.stop()
+        # Set durable=False when ensuring the queue, to match the non-durable configuration
+        self.ensure_queue(queue, durable=False)
+        message_body = json.dumps(message)
+        self.channel.basic_publish(
+            exchange='',
+            routing_key=queue,
+            body=message_body,
+            properties=pika.BasicProperties(delivery_mode=2 if persistent else 1)
+        )
+        logger.info(f"Message sent to queue '{queue}': {message}")
 
-    def stop(self) -> None:
+    def consume_messages(self, queue: str, callback: Callable, auto_ack: bool = True) -> None:
         """
-        Gracefully stop the connection's I/O loop.
+        Sets up a consumer with the specified callback.
+
+        Parameters:
+            queue (str): The queue to consume messages from.
+            callback (Callable): The callback function to process each message.
+            auto_ack (bool): If True, enables automatic message acknowledgment.
         """
-        self.should_reconnect = False
-        if self.connection:
+        self.connect()
+        self.ensure_queue(queue, durable=False)  # Set durable=False for non-durable queues
+        self.channel.basic_consume(queue=queue, on_message_callback=callback, auto_ack=auto_ack)
+        logger.info(f"Started consuming messages from queue '{queue}'")
+        self.channel.start_consuming()
+
+    def close(self) -> None:
+        """
+        Closes the RabbitMQ connection if it is open.
+        """
+        if self.connection and not self.connection.is_closed:
             self.connection.close()
-            self.connection.ioloop.stop()
-            logging.info("RabbitMQ connection closed and I/O loop stopped")
-
-    def publish_message(self, message: dict, timeout: int = 10) -> None:
-        """
-        Publishes a JSON-encoded message to the RabbitMQ queue, with a timeout for channel readiness.
-
-        Args:
-            message (dict): The message to send to the queue.
-            timeout (int): Maximum time (in seconds) to wait for the channel to be ready.
-        """
-        if self.channel is None or not self.channel.is_open:
-            print("Connecting to RabbitMQ...")
-            self.connect()
-            start_time = time.time()
-            
-            while (self.channel is None or not self.channel.is_open) and (time.time() - start_time < timeout):
-                print("Waiting for RabbitMQ channel to open...")
-                time.sleep(1)
-            
-            if self.channel is None or not self.channel.is_open:
-                print("Cannot publish message: RabbitMQ channel did not open in time.")
-                return
-
-        try:
-            message_body = json.dumps(message)
-            self.channel.basic_publish(
-                exchange='',
-                routing_key=self.queue,
-                body=message_body
-            )
-            print(f"Published message to queue '{self.queue}': {message}")
-        except Exception as e:
-            print(f"Failed to publish message to queue '{self.queue}': {e}")
+            logger.info("RabbitMQ connection closed")
