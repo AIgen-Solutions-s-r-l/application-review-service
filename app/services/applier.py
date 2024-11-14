@@ -1,21 +1,18 @@
 import asyncio
+import json
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
-from bson import ObjectId
-from app.core.config import Settings  # Only import Settings
+from app.core.config import Settings
 from app.core.rabbitmq_client import RabbitMQClient
 
 # Initialize settings and RabbitMQ client
 settings = Settings()
-rabbitmq_client = RabbitMQClient(settings.rabbitmq_url, settings.career_docs_queue, callback=None)
+rabbitmq_client = RabbitMQClient(settings.rabbitmq_url)
 rabbitmq_client.connect()
-
-import pika
-import json
 
 async def notify_career_docs(user_id: str, job_id: str):
     """
-    Publishes a message to the career_docs queue after a job is processed using a blocking connection.
+    Publishes a message to the career_docs queue after a job is processed.
 
     Args:
         user_id (str): The ID of the user associated with the job.
@@ -27,18 +24,9 @@ async def notify_career_docs(user_id: str, job_id: str):
         "status": "processed"
     }
     try:
-        # Use a blocking connection to RabbitMQ for testing
-        connection = pika.BlockingConnection(pika.URLParameters(settings.rabbitmq_url))
-        channel = connection.channel()
-        channel.queue_declare(queue=settings.career_docs_queue)
-        message_body = json.dumps(message)
-        channel.basic_publish(
-            exchange='',
-            routing_key=settings.career_docs_queue,
-            body=message_body
-        )
+        # Use the existing rabbitmq_client to publish the message
+        rabbitmq_client.publish_message(queue=settings.career_docs_queue, message=message)
         print(f"Notification sent for user {user_id}, job {job_id}")
-        connection.close()
     except Exception as e:
         print(f"Failed to send notification for user {user_id}, job {job_id}: {str(e)}")
 

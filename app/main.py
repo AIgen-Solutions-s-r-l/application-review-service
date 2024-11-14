@@ -13,33 +13,39 @@ from app.services.applier import consume_jobs_interleaved
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-# Configura il logging
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Carica le impostazioni
+# Load settings
 settings = Settings()
 
-# Crea un'istanza del client RabbitMQ
-rabbit_client = RabbitMQClient(
-    rabbitmq_url=settings.rabbitmq_url,
-    queue=settings.career_docs_queue,
-    callback=lambda ch, method, properties, body: print(f"Message: {body.decode()}")
-)
+# Create an instance of the RabbitMQ client without 'queue'
+rabbit_client = RabbitMQClient(rabbitmq_url=settings.rabbitmq_url)
 
-# Crea un'istanza del client MongoDB
+# Define the callback function
+def rabbitmq_callback(ch, method, properties, body):
+    print(f"Message: {body.decode()}")
+
+# Create an instance of the MongoDB client
 mongo_client = AsyncIOMotorClient(settings.mongodb)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Context manager per l'avvio e lo spegnimento delle risorse.
+    Context manager for starting and stopping resources.
     """
-    # Avvia il client RabbitMQ in un thread separato
-    rabbit_thread = Thread(target=rabbit_client.start, daemon=True)
+    # Start the RabbitMQ client in a separate thread
+    rabbit_thread = Thread(
+        target=lambda: rabbit_client.consume_messages(
+            queue=settings.career_docs_queue, 
+            callback=rabbitmq_callback
+        ),
+        daemon=True
+    )
     rabbit_thread.start()
     logging.info("RabbitMQ client started")
 
-    # Avvia il consumatore di job come task di background
+    # Start the job consumer as a background task
     loop = asyncio.get_event_loop()
     job_consumer_task = asyncio.create_task(consume_jobs_interleaved(mongo_client))
     logging.info("Job consumer started")
@@ -47,23 +53,21 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # Ferma il client RabbitMQ e altre risorse
-        rabbit_client.stop()
+        # Stop the RabbitMQ client and other resources
+        rabbit_client.close()
         rabbit_thread.join()
         logging.info("RabbitMQ client stopped")
 
-        # Cancella il task del consumatore di job
+        # Cancel the job consumer task
         job_consumer_task.cancel()
         try:
             await job_consumer_task
         except asyncio.CancelledError:
             logging.info("Job consumer task cancelled")
-        
-        # Chiudi il client MongoDB
+
+        # Close the MongoDB client
         mongo_client.close()
         logging.info("MongoDB client closed")
 
-# Inizializza l'app FastAPI con il context manager di lifespan
+# Initialize the FastAPI app with the lifespan context manager
 app = FastAPI(lifespan=lifespan)
-
-# Non aggiungere route o router
