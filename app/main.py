@@ -15,7 +15,7 @@ from app.services.applier import consume_jobs_interleaved, handle_career_docs_re
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # Load settings
 settings = Settings()

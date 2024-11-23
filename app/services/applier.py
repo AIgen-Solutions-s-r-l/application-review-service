@@ -34,7 +34,7 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
     try:
         print("Connecting to MongoDB...")
 
-        db = mongo_client.get_database("db_name")
+        db = mongo_client.get_database("resumes")
         collection = db.get_collection("jobs_to_apply_per_user")
 
         print("Fetching job lists from MongoDB...")
@@ -66,13 +66,13 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
 
                 if pointer < len(jobs):
                     job = jobs[pointer]
-                    print(f"Processing job {job.get('job_id', 'unknown')} for user {user_id}")
+                    print(f"Processing job {job} for user {user_id}")
 
                     # Process the job
                     await process_job(user_id, job)
 
                     # Notify the career_docs service
-                    await notify_career_docs(user_id, job.get('job_id', 'unknown'))
+                    await notify_career_docs(user_id, job)
 
                     # Increment pointer after processing
                     pointers[doc_id] += 1
@@ -103,11 +103,11 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
 # Simulated job processing function
 async def process_job(user_id, job):
     try:
-        print(f"Applying to job {job.get('title', 'Unknown Title')} (Job ID: {job.get('job_id', 'unknown')}) for user {user_id}")
+        print(f"Applying to job {job} (Job ID: {job}) for user {user_id}")
         await asyncio.sleep(0.5)  # Simulate a lengthy request or processing
-        print(f"Job {job.get('job_id', 'unknown')} for user {user_id} has been processed.")
+        print(f"Job {job} for user {user_id} has been processed.")
     except Exception as e:
-        print(f"Error while processing job {job.get('job_id', 'unknown')} for user {user_id}: {e}")
+        print(f"Error while processing job {job} for user {user_id}: {e}")
 
 async def handle_career_docs_response(body: dict):
     """
