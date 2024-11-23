@@ -108,3 +108,21 @@ async def process_job(user_id, job):
         print(f"Job {job.get('job_id', 'unknown')} for user {user_id} has been processed.")
     except Exception as e:
         print(f"Error while processing job {job.get('job_id', 'unknown')} for user {user_id}: {e}")
+
+async def handle_career_docs_response(body: dict):
+    """
+    Handle the response from the career_docs service.
+    Args:
+        body (dict): The message containing the CV, cover letter, and interview responses.
+    """
+    try:
+        print(f"Received response from career_docs: {body}")
+        # Example of processing the received response
+        cv = body.get("cv")
+        cover_letter = body.get("cover_letter")
+        interview_responses = body.get("interview_responses")
+        
+        # Process or save to MongoDB as required
+        print(f"Processing: CV={cv}, Cover Letter={cover_letter}, Interview Responses={interview_responses}")
+    except Exception as e:
+        print(f"Error handling career_docs response: {e}")

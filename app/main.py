@@ -2,6 +2,7 @@
 
 import logging
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from threading import Thread
 
@@ -9,7 +10,7 @@ from fastapi import FastAPI
 
 from app.core.config import Settings
 from app.core.rabbitmq_client import RabbitMQClient
-from app.services.applier import consume_jobs_interleaved
+from app.services.applier import consume_jobs_interleaved, handle_career_docs_response
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -22,9 +23,27 @@ settings = Settings()
 # Create an instance of the RabbitMQ client without 'queue'
 rabbit_client = RabbitMQClient(rabbitmq_url=settings.rabbitmq_url)
 
-# Define the callback function
+# Define the callback for career_docs queue
 def rabbitmq_callback(ch, method, properties, body):
-    print(f"Message: {body.decode()}")
+    """
+    Callback to process messages from the career_docs_queue.
+    """
+    try:
+        message = body.decode()
+        print(f"Received message from career_docs_queue: {message}")
+    except Exception as e:
+        logging.error(f"Error in rabbitmq_callback: {e}")
+
+# Define the callback for career_docs_response queue
+def career_docs_response_callback(ch, method, properties, body):
+    """
+    Callback to process responses from the career_docs_response_queue.
+    """
+    try:
+        message = json.loads(body.decode())
+        asyncio.run(handle_career_docs_response(message))
+    except Exception as e:
+        logging.error(f"Error in career_docs_response_callback: {e}")
 
 # Create an instance of the MongoDB client
 mongo_client = AsyncIOMotorClient(settings.mongodb)
@@ -34,16 +53,25 @@ async def lifespan(app: FastAPI):
     """
     Context manager for starting and stopping resources.
     """
-    # Start the RabbitMQ client in a separate thread
+    # Start the RabbitMQ client in separate threads for different queues
     rabbit_thread = Thread(
         target=lambda: rabbit_client.consume_messages(
-            queue=settings.career_docs_queue, 
+            queue=settings.career_docs_queue,
             callback=rabbitmq_callback
         ),
         daemon=True
     )
+    response_thread = Thread(
+        target=lambda: rabbit_client.consume_messages(
+            queue=settings.career_docs_response_queue,
+            callback=career_docs_response_callback
+        ),
+        daemon=True
+    )
+
     rabbit_thread.start()
-    logging.info("RabbitMQ client started")
+    response_thread.start()
+    logging.info("RabbitMQ clients started for both queues")
 
     # Start the job consumer as a background task
     loop = asyncio.get_event_loop()
@@ -53,10 +81,11 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # Stop the RabbitMQ client and other resources
+        # Stop the RabbitMQ clients and other resources
         rabbit_client.close()
         rabbit_thread.join()
-        logging.info("RabbitMQ client stopped")
+        response_thread.join()
+        logging.info("RabbitMQ clients stopped")
 
         # Cancel the job consumer task
         job_consumer_task.cancel()
