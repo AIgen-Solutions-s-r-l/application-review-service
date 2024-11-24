@@ -3,6 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
 from app.core.config import Settings
 from app.core.rabbitmq_client import RabbitMQClient
+import json
 
 # Initialize settings and RabbitMQ client
 settings = Settings()
@@ -42,7 +43,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient):
         job_lists = await cursor.to_list(length=None)
 
         for doc in job_lists:
-            if "_id" not in doc or "user_id" not in doc or not isinstance(doc.get("jobs"), dict):
+            if "_id" not in doc or "user_id" not in doc:
                 print(f"Skipping invalid document: {doc}")
                 continue
 
@@ -50,7 +51,15 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient):
             resume = doc.get("resume", {})
             jobs_field = doc["jobs"]
 
-            if "jobs" not in jobs_field:
+            # Check if jobs_field is a JSON string and parse it
+            if isinstance(jobs_field, str):
+                try:
+                    jobs_field = json.loads(jobs_field)
+                except json.JSONDecodeError as e:
+                    print(f"Failed to parse 'jobs' JSON in document: {doc}, error: {str(e)}")
+                    continue
+
+            if not isinstance(jobs_field, dict) or "jobs" not in jobs_field:
                 print(f"Invalid 'jobs' structure in document: {doc}")
                 continue
 
@@ -70,12 +79,6 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient):
 
             # After processing all jobs for the user, send the triple to career_docs
             await notify_career_docs(user_id, resume, jobs_data)
-
-            # Optionally, delete the document from the collection after processing
-            '''try:
-                await collection.delete_one({"_id": doc["_id"]})
-            except Exception as e:
-                print(f"Error removing document {doc['_id']}: {str(e)}")'''
 
         print("All jobs have been processed.")
 
