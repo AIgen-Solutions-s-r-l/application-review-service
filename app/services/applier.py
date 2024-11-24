@@ -1,98 +1,83 @@
 import asyncio
-import json
-from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
-from app.core.config import Settings
+from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.rabbitmq_client import RabbitMQClient
+import json
 
-# Initialize settings and RabbitMQ client
-settings = Settings()
-rabbitmq_client = RabbitMQClient(settings.rabbitmq_url)
-rabbitmq_client.connect()
-
-async def notify_career_docs(user_id: str, job_id: str):
+async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: RabbitMQClient, settings):
     """
-    Publishes a message to the career_docs queue after a job is processed.
-
-    Args:
-        user_id (str): The ID of the user associated with the job.
-        job_id (str): The ID of the processed job.
+    Publishes a message to the career_docs queue with the user's resume and jobs list.
     """
     message = {
         "user_id": user_id,
-        "job_id": job_id,
-        "status": "processed"
+        "resume": resume,
+        "jobs": jobs,
     }
     try:
-        # Use the existing rabbitmq_client to publish the message
+        # Use the RabbitMQ client to publish the message
         rabbitmq_client.publish_message(queue=settings.career_docs_queue, message=message)
-        print(f"Notification sent for user {user_id}, job {job_id}")
+        print(f"Notification sent to career_docs for user {user_id}")
     except Exception as e:
-        print(f"Failed to send notification for user {user_id}, job {job_id}: {str(e)}")
+        print(f"Failed to send notification to career_docs for user {user_id}: {str(e)}")
 
-async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
+async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: RabbitMQClient, settings):
     try:
         print("Connecting to MongoDB...")
 
-        db = mongo_client.get_database("db_name")
+        db = mongo_client.get_database("resumes")
         collection = db.get_collection("jobs_to_apply_per_user")
 
         print("Fetching job lists from MongoDB...")
         cursor = collection.find()
         job_lists = await cursor.to_list(length=None)
 
-        # Initialize pointers with a guard clause for non-empty jobs
-        pointers = {
-            doc["_id"]: 0
-            for doc in job_lists
-            if "_id" in doc and "user_id" in doc and "jobs" in doc and len(doc["jobs"]) > 0
-        }
+        for doc in job_lists:
+            if "_id" not in doc or "user_id" not in doc:
+                print(f"Skipping invalid document: {doc}")
+                continue
 
-        while pointers:
-            to_remove = []
+            user_id = doc["user_id"]
+            resume = doc.get("resume", {})
+            jobs_field = doc["jobs"]
 
-            for doc in job_lists:
-                if "_id" not in doc or "user_id" not in doc or "jobs" not in doc:
+            # Check if jobs_field is a JSON string and parse it
+            if isinstance(jobs_field, str):
+                try:
+                    jobs_field = json.loads(jobs_field)
+                except json.JSONDecodeError as e:
+                    print(f"Failed to parse 'jobs' JSON in document: {doc}, error: {str(e)}")
                     continue
 
-                doc_id = doc["_id"]
-                user_id = doc["user_id"]
-                jobs = doc["jobs"]
+            if not isinstance(jobs_field, dict) or "jobs" not in jobs_field:
+                print(f"Invalid 'jobs' structure in document: {doc}")
+                continue
 
-                if doc_id not in pointers:
-                    continue
+            jobs_data = jobs_field["jobs"]
 
-                pointer = pointers[doc_id]
+            if not isinstance(jobs_data, list):
+                print(f"'jobs' is not a list in document: {doc}")
+                continue
 
-                if pointer < len(jobs):
-                    job = jobs[pointer]
-                    print(f"Processing job {job.get('job_id', 'unknown')} for user {user_id}")
+            for job in jobs_data:
+                job_id = job.get("id")
+                job_title = job.get("title")
+                print(f"Processing job '{job_title}' (Job ID: {job_id}) for user {user_id}")
 
-                    # Process the job
-                    await process_job(user_id, job)
+                # Process the job
+                await process_job(user_id, job)
 
-                    # Notify the career_docs service
-                    await notify_career_docs(user_id, job.get('job_id', 'unknown'))
+            # After processing all jobs for the user, send the triple to career_docs
+            await notify_career_docs(user_id, resume, jobs_data, rabbitmq_client, settings)
 
-                    # Increment pointer after processing
-                    pointers[doc_id] += 1
-
-                    # If pointer exceeds job length, mark for removal
-                    if pointers[doc_id] >= len(jobs):
-                        to_remove.append(doc_id)
-                else:
-                    to_remove.append(doc_id)
-
-            # Remove documents that have been fully processed
-            for doc_id in to_remove:
-                if doc_id in pointers:
-                    try:
-                        await collection.delete_one({"_id": doc_id})
-                        del pointers[doc_id]
-                    except Exception as e:
-                        print(f"Error removing document {doc_id}: {str(e)}")
-
-            await asyncio.sleep(0.1)
+            # Commented out deletion of the processed document from MongoDB
+            # try:
+            #     result = await collection.delete_one({"_id": doc["_id"]})
+            #     if result.deleted_count == 1:
+            #         print(f"Successfully deleted document for user {user_id}")
+            #     else:
+            #         print(f"Failed to delete document for user {user_id}")
+            # except Exception as e:
+            #     print(f"Error deleting document for user {user_id}: {e}")
 
         print("All jobs have been processed.")
 
@@ -103,8 +88,26 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
 # Simulated job processing function
 async def process_job(user_id, job):
     try:
-        print(f"Applying to job {job.get('title', 'Unknown Title')} (Job ID: {job.get('job_id', 'unknown')}) for user {user_id}")
+        print(f"Applying to job {job} for user {user_id}")
         await asyncio.sleep(0.5)  # Simulate a lengthy request or processing
-        print(f"Job {job.get('job_id', 'unknown')} for user {user_id} has been processed.")
+        print(f"Job {job} for user {user_id} has been processed.")
     except Exception as e:
-        print(f"Error while processing job {job.get('job_id', 'unknown')} for user {user_id}: {e}")
+        print(f"Error while processing job {job} for user {user_id}: {e}")
+
+async def handle_career_docs_response(body: dict):
+    """
+    Handle the response from the career_docs service.
+    Args:
+        body (dict): The message containing the CV, cover letter, and interview responses.
+    """
+    try:
+        print(f"Received response from career_docs: {body}")
+        # Example of processing the received response
+        cv = body.get("cv")
+        cover_letter = body.get("cover_letter")
+        interview_responses = body.get("interview_responses")
+        
+        # Process or save to MongoDB as required
+        print(f"Processing: CV={cv}, Cover Letter={cover_letter}, Interview Responses={interview_responses}")
+    except Exception as e:
+        print(f"Error handling career_docs response: {e}")
