@@ -1,4 +1,3 @@
-# app/main.py
 import logging
 from contextlib import asynccontextmanager
 from threading import Thread
@@ -21,15 +20,29 @@ rabbit_client = RabbitMQClient(rabbitmq_url=settings.rabbitmq_url)
 
 def rabbitmq_callback(ch, method, properties, body):
     try:
-        logging.info(f"Message received: {body.decode()}")
-        # Simulate processing logic here
-        logging.info(f"Processing message: {body.decode()}")
+        message = json.loads(body)
+        if not isinstance(message, dict):
+            raise ValueError("Invalid message format: must be a dictionary")
+
+        logging.info(f"Message received: {message}")
+        user_id = message.get("user_id")
+        resume = message.get("resume")
+        jobs = message.get("jobs")
+
+        if not user_id or not resume or not jobs:
+            raise ValueError("Incomplete message: 'user_id', 'resume', and 'jobs' are required")
+
+        # Process the message
+        logging.info(f"Processing triple: user_id={user_id}, resume={resume}, jobs={jobs}")
 
         # Acknowledge only if auto_ack=False
         if not ch.is_closed:  # Ensure the channel is still open
             ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception as e:
         logging.error(f"Error processing message: {e}")
+        # Optionally, reject the message
+        if not ch.is_closed:
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
 
 # MongoDB client
 mongo_client = AsyncIOMotorClient(settings.mongodb)

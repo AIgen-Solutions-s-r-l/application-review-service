@@ -27,7 +27,7 @@ class RabbitMQClient:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
 
-    def ensure_queue(self, queue: str, durable: bool = False) -> None:
+    def ensure_queue(self, queue: str, durable: bool = True) -> None:
         """Ensures that a queue exists."""
         self.connect()
         try:
@@ -37,7 +37,7 @@ class RabbitMQClient:
             logger.error(f"Failed to ensure queue '{queue}': {e}")
             raise
 
-    def publish_message(self, queue: str, message: dict, persistent: bool = False) -> None:
+    def publish_message(self, queue: str, message: dict, persistent: bool = True) -> None:
         """Publishes a message to the queue."""
         try:
             self.connect()

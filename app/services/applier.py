@@ -1,5 +1,6 @@
 import asyncio
 import json
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
 from app.core.config import Settings
@@ -10,25 +11,26 @@ settings = Settings()
 rabbitmq_client = RabbitMQClient(settings.rabbitmq_url)
 rabbitmq_client.connect()
 
-async def notify_career_docs(user_id: str, job_id: str):
+async def notify_career_docs(user_id: str, resume: dict, jobs: list):
     """
-    Publishes a message to the career_docs queue after a job is processed.
+    Publishes a message to the career_docs queue with the user's resume and jobs list.
 
     Args:
-        user_id (str): The ID of the user associated with the job.
-        job_id (str): The ID of the processed job.
+        user_id (str): The ID of the user.
+        resume (dict): The user's resume data.
+        jobs (list): The list of jobs associated with the user.
     """
     message = {
         "user_id": user_id,
-        "job_id": job_id,
-        "status": "processed"
+        "resume": resume,
+        "jobs": jobs
     }
     try:
         # Use the existing rabbitmq_client to publish the message
         rabbitmq_client.publish_message(queue=settings.career_docs_queue, message=message)
-        print(f"Notification sent for user {user_id}, job {job_id}")
+        print(f"Notification sent to career_docs for user {user_id}")
     except Exception as e:
-        print(f"Failed to send notification for user {user_id}, job {job_id}: {str(e)}")
+        print(f"Failed to send notification to career_docs for user {user_id}: {str(e)}")
 
 async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
     try:
@@ -41,11 +43,15 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
         cursor = collection.find()
         job_lists = await cursor.to_list(length=None)
 
+        # Debugging: Print the fetched documents
+        for doc in job_lists:
+            print(f"Document fetched from MongoDB: {doc}")
+
         # Initialize pointers with a guard clause for non-empty jobs
         pointers = {
-            doc["_id"]: 0
+            str(doc["_id"]): 0
             for doc in job_lists
-            if "_id" in doc and "user_id" in doc and "jobs" in doc and len(doc["jobs"]) > 0
+            if "_id" in doc and "user_id" in doc and "jobs" in doc and isinstance(doc["jobs"], dict)
         }
 
         while pointers:
@@ -53,32 +59,45 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
 
             for doc in job_lists:
                 if "_id" not in doc or "user_id" not in doc or "jobs" not in doc:
+                    print(f"Skipping invalid document: {doc}")
                     continue
 
-                doc_id = doc["_id"]
+                doc_id = str(doc["_id"])
                 user_id = doc["user_id"]
-                jobs = doc["jobs"]
+                jobs_field = doc["jobs"]
+
+                # Ensure jobs_field is a dictionary and contains the "jobs" list
+                if not isinstance(jobs_field, dict) or "jobs" not in jobs_field:
+                    print(f"Invalid 'jobs' structure in document: {doc}")
+                    continue
+
+                jobs_data = jobs_field["jobs"]
+
+                if not isinstance(jobs_data, list):
+                    print(f"'jobs' is not a list in document: {doc}")
+                    continue
 
                 if doc_id not in pointers:
                     continue
 
                 pointer = pointers[doc_id]
 
-                if pointer < len(jobs):
-                    job = jobs[pointer]
-                    print(f"Processing job {job} for user {user_id}")
+                if pointer < len(jobs_data):
+                    job = jobs_data[pointer]
+                    job_id = job.get("id")
+                    job_title = job.get("title")
+                    print(f"Processing job '{job_title}' (Job ID: {job_id}) for user {user_id}")
 
                     # Process the job
                     await process_job(user_id, job)
 
-                    # Notify the career_docs service
-                    await notify_career_docs(user_id, job)
-
                     # Increment pointer after processing
                     pointers[doc_id] += 1
 
-                    # If pointer exceeds job length, mark for removal
-                    if pointers[doc_id] >= len(jobs):
+                    # If pointer reaches the end of jobs, send the triple to career_docs
+                    if pointers[doc_id] >= len(jobs_data):
+                        resume = doc.get("resume", {})
+                        await notify_career_docs(user_id, resume, jobs_data)
                         to_remove.append(doc_id)
                 else:
                     to_remove.append(doc_id)
@@ -87,7 +106,7 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
             for doc_id in to_remove:
                 if doc_id in pointers:
                     try:
-                        await collection.delete_one({"_id": doc_id})
+                        await collection.delete_one({"_id": ObjectId(doc_id)})
                         del pointers[doc_id]
                     except Exception as e:
                         print(f"Error removing document {doc_id}: {str(e)}")
