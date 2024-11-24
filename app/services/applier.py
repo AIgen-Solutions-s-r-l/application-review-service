@@ -1,6 +1,4 @@
 import asyncio
-import json
-from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
 from app.core.config import Settings
@@ -32,7 +30,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list):
     except Exception as e:
         print(f"Failed to send notification to career_docs for user {user_id}: {str(e)}")
 
-async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
+async def consume_jobs(mongo_client: AsyncIOMotorClient):
     try:
         print("Connecting to MongoDB...")
 
@@ -43,74 +41,41 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
         cursor = collection.find()
         job_lists = await cursor.to_list(length=None)
 
-        # Debugging: Print the fetched documents and process them
-        for doc in job_lists:  # The loop correctly processes each document
-            print(f"Document fetched from MongoDB: {doc}")
+        for doc in job_lists:
+            if "_id" not in doc or "user_id" not in doc or not isinstance(doc.get("jobs"), dict):
+                print(f"Skipping invalid document: {doc}")
+                continue
 
-            # Initialize pointers with a guard clause for non-empty jobs
-            pointers = {
-                str(doc["_id"]): 0
-                for doc in job_lists
-                if "_id" in doc and "user_id" in doc and isinstance(doc.get("jobs"), dict) and "jobs" in doc["jobs"]
-            }
+            user_id = doc["user_id"]
+            resume = doc.get("resume", {})
+            jobs_field = doc["jobs"]
 
-        while pointers:
-            to_remove = []
+            if "jobs" not in jobs_field:
+                print(f"Invalid 'jobs' structure in document: {doc}")
+                continue
 
-            for doc in job_lists:  # Ensure this loop processes each document
-                if "_id" not in doc or "user_id" not in doc or not isinstance(doc.get("jobs"), dict):
-                    print(f"Skipping invalid document: {doc}")
-                    continue
+            jobs_data = jobs_field["jobs"]
 
-                doc_id = str(doc["_id"])
-                user_id = doc["user_id"]
-                jobs_field = doc["jobs"]
+            if not isinstance(jobs_data, list):
+                print(f"'jobs' is not a list in document: {doc}")
+                continue
 
-                if "jobs" not in jobs_field:
-                    print(f"Invalid 'jobs' structure in document: {doc}")
-                    continue
+            for job in jobs_data:
+                job_id = job.get("id")
+                job_title = job.get("title")
+                print(f"Processing job '{job_title}' (Job ID: {job_id}) for user {user_id}")
 
-                jobs_data = jobs_field["jobs"]
+                # Process the job
+                await process_job(user_id, job)
 
-                if not isinstance(jobs_data, list):
-                    print(f"'jobs' is not a list in document: {doc}")
-                    continue
+            # After processing all jobs for the user, send the triple to career_docs
+            await notify_career_docs(user_id, resume, jobs_data)
 
-                if doc_id not in pointers:
-                    continue
-
-                pointer = pointers[doc_id]
-
-                if pointer < len(jobs_data):
-                    job = jobs_data[pointer]
-                    job_id = job.get("id")
-                    job_title = job.get("title")
-                    print(f"Processing job '{job_title}' (Job ID: {job_id}) for user {user_id}")
-
-                    # Process the job
-                    await process_job(user_id, job)
-
-                    # Increment pointer after processing
-                    pointers[doc_id] += 1
-
-                    # If pointer reaches the end of jobs, send the triple to career_docs
-                    if pointers[doc_id] >= len(jobs_data):
-                        resume = doc.get("resume", {})
-                        await notify_career_docs(user_id, resume, jobs_data)  # Send triple to career_docs
-                        to_remove.append(doc_id)
-                else:
-                    to_remove.append(doc_id)
-
-            # Remove documents that have been fully processed
-            '''for doc_id in to_remove:
-                if doc_id in pointers:
-                    try:
-                        await collection.delete_one({"_id": ObjectId(doc_id)})
-                        del pointers[doc_id]
-                    except Exception as e:
-                        print(f"Error removing document {doc_id}: {str(e)}")'''
-
-            await asyncio.sleep(0.1)
+            # Optionally, delete the document from the collection after processing
+            '''try:
+                await collection.delete_one({"_id": doc["_id"]})
+            except Exception as e:
+                print(f"Error removing document {doc['_id']}: {str(e)}")'''
 
         print("All jobs have been processed.")
 
@@ -121,7 +86,7 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
 # Simulated job processing function
 async def process_job(user_id, job):
     try:
-        print(f"Applying to job {job} (Job ID: {job}) for user {user_id}")
+        print(f"Applying to job {job} for user {user_id}")
         await asyncio.sleep(0.5)  # Simulate a lengthy request or processing
         print(f"Job {job} for user {user_id} has been processed.")
     except Exception as e:
