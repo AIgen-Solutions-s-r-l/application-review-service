@@ -33,7 +33,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
         collection = db.get_collection("jobs_to_apply_per_user")
 
         print("Fetching job lists from MongoDB...")
-        cursor = collection.find()
+        cursor = collection.find({}, {"_id" : 0})
         job_lists = await cursor.to_list(length=None)
 
         for doc in job_lists:
