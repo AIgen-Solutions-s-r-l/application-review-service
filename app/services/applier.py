@@ -37,8 +37,8 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
         job_lists = await cursor.to_list(length=None)
 
         for doc in job_lists:
-            if "_id" not in doc or "user_id" not in doc:
-                print(f"Skipping invalid document: {doc}")
+            if "user_id" not in doc:
+                print(f"Skipping invalid document")
                 continue
 
             user_id = doc["user_id"]
@@ -50,7 +50,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                 try:
                     jobs_field = json.loads(jobs_field)
                 except json.JSONDecodeError as e:
-                    print(f"Failed to parse 'jobs' JSON in document: {doc}, error: {str(e)}")
+                    print(f"Failed to parse 'jobs' JSON in document with error: {str(e)}")
                     continue
 
             if not isinstance(jobs_field, dict) or "jobs" not in jobs_field:
