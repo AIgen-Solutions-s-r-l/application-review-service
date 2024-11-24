@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 import json
 from aio_pika import IncomingMessage
-
+from app.core.appliers_config import APPLIERS, process_default
 
 async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
@@ -99,9 +99,11 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
         body = message.body.decode()
         data = json.loads(body)
         print(f"Received response from career_docs: {data}")
-        #TODO: For now, just print something
-        print("Processing career_docs_response")
 
+        # Process the received data and send to other appliers (see core/appliers_config.py)
+        # TODO: When we'll have other appliers: add them and decomment it!
+        # await send_data_to_microservices(data, rabbitmq_client)
+        
         # Acknowledge the message
         await message.ack()
 
@@ -110,3 +112,18 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
         callback=on_message,
         auto_ack=False  # We'll manually acknowledge after processing
     )
+
+async def send_data_to_microservices(data, rabbitmq_client: AsyncRabbitMQClient):
+    """
+    Processes the received data and sends it to different microservices via their queues.
+    """
+    for microservice_name, microservice_info in APPLIERS.items():
+        queue_name = microservice_info['queue_name']
+        process_function = microservice_info.get('process_function', process_default)
+
+        # Process data for the microservice
+        microservice_data = process_function(data)
+
+        # Send data to the microservice's queue
+        await rabbitmq_client.publish_message(queue_name=queue_name, message=microservice_data)
+        print(f"Sent data to microservice '{microservice_name}' via queue '{queue_name}'")
