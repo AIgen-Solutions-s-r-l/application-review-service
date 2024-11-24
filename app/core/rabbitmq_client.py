@@ -56,29 +56,34 @@ class RabbitMQClient:
 
     def consume_messages(self, queue: str, callback: Callable, auto_ack: bool = True) -> None:
         """Consumes messages from the queue with enhanced error handling."""
-        try:
-            self.connect()
-            self.ensure_queue(queue, durable=False)
-            self.channel.basic_consume(
-                queue=queue,
-                on_message_callback=callback,
-                auto_ack=auto_ack,
-            )
-            logger.info(f"Started consuming messages from queue '{queue}'")
-            self.channel.start_consuming()
-        except pika.exceptions.ConnectionClosedByBroker as e:
-            logger.error(f"Connection closed by broker: {e}")
-            self.connect()
-            self.consume_messages(queue, callback, auto_ack)
-        except pika.exceptions.AMQPChannelError as e:
-            logger.error(f"AMQP channel error: {e}")
-            self.close()
-        except Exception as e:
-            logger.error(f"Error consuming messages from queue '{queue}': {e}")
-            raise
+        while True:  # Infinite loop to ensure reconnection
+            try:
+                self.connect()
+                self.ensure_queue(queue, durable=False)
+                self.channel.basic_consume(
+                    queue=queue,
+                    on_message_callback=callback,
+                    auto_ack=auto_ack,
+                )
+                logger.info(f"Started consuming messages from queue '{queue}'")
+                self.channel.start_consuming()
+            except pika.exceptions.ConnectionClosedByBroker as e:
+                logger.error(f"Connection closed by broker: {e}")
+                self.connect()
+            except pika.exceptions.AMQPChannelError as e:
+                logger.error(f"AMQP channel error: {e}")
+                self.close()
+                break  # Exit on unrecoverable errors
+            except Exception as e:
+                logger.error(f"Error consuming messages from queue '{queue}': {e}")
+                break  # Exit on unrecoverable errors
+
 
     def close(self) -> None:
         """Closes the RabbitMQ connection."""
         if self.connection and not self.connection.is_closed:
-            self.connection.close()
-            logger.info("RabbitMQ connection closed")
+            try:
+                self.connection.close()
+                logger.info("RabbitMQ connection closed")
+            except Exception as e:
+                logger.error(f"Error while closing RabbitMQ connection: {e}")

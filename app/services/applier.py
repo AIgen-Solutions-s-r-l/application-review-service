@@ -51,14 +51,14 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
         pointers = {
             str(doc["_id"]): 0
             for doc in job_lists
-            if "_id" in doc and "user_id" in doc and "jobs" in doc and isinstance(doc["jobs"], dict)
+            if "_id" in doc and "user_id" in doc and isinstance(doc.get("jobs"), dict) and "jobs" in doc["jobs"]
         }
 
         while pointers:
             to_remove = []
 
             for doc in job_lists:
-                if "_id" not in doc or "user_id" not in doc or "jobs" not in doc:
+                if "_id" not in doc or "user_id" not in doc or not isinstance(doc.get("jobs"), dict):
                     print(f"Skipping invalid document: {doc}")
                     continue
 
@@ -66,8 +66,7 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
                 user_id = doc["user_id"]
                 jobs_field = doc["jobs"]
 
-                # Ensure jobs_field is a dictionary and contains the "jobs" list
-                if not isinstance(jobs_field, dict) or "jobs" not in jobs_field:
+                if "jobs" not in jobs_field:
                     print(f"Invalid 'jobs' structure in document: {doc}")
                     continue
 
