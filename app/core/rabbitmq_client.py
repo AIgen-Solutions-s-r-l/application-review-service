@@ -41,7 +41,7 @@ class RabbitMQClient:
         """Publishes a message to the queue."""
         try:
             self.connect()
-            self.ensure_queue(queue, durable=False)
+            self.ensure_queue(queue, durable=True)
             message_body = json.dumps(message)
             self.channel.basic_publish(
                 exchange="",
@@ -49,7 +49,7 @@ class RabbitMQClient:
                 body=message_body,
                 properties=pika.BasicProperties(delivery_mode=2 if persistent else 1),
             )
-            logger.info(f"Message sent to queue '{queue}': {message}")
+            logger.info(f"Message published to queue '{queue}': {message}")
         except Exception as e:
             logger.error(f"Failed to publish message to queue '{queue}': {e}")
             raise

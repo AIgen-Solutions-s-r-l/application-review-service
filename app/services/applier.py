@@ -23,10 +23,10 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list):
     message = {
         "user_id": user_id,
         "resume": resume,
-        "jobs": jobs
+        "jobs": jobs,
     }
     try:
-        # Use the existing rabbitmq_client to publish the message
+        # Use the RabbitMQ client to publish the message
         rabbitmq_client.publish_message(queue=settings.career_docs_queue, message=message)
         print(f"Notification sent to career_docs for user {user_id}")
     except Exception as e:
@@ -96,7 +96,7 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
                     # If pointer reaches the end of jobs, send the triple to career_docs
                     if pointers[doc_id] >= len(jobs_data):
                         resume = doc.get("resume", {})
-                        await notify_career_docs(user_id, resume, jobs_data)
+                        await notify_career_docs(user_id, resume, jobs_data)  # Send triple to career_docs
                         to_remove.append(doc_id)
                 else:
                     to_remove.append(doc_id)
