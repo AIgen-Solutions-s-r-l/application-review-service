@@ -26,7 +26,7 @@ class RabbitMQClient:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
 
-    def ensure_queue(self, queue: str, durable: bool = True) -> None:
+    def ensure_queue(self, queue: str, durable: bool = False) -> None:
         """Ensures that a queue exists."""
         self.connect()
         try:
@@ -36,11 +36,11 @@ class RabbitMQClient:
             logger.error(f"Failed to ensure queue '{queue}': {e}")
             raise
 
-    def publish_message(self, queue: str, message: dict, persistent: bool = True) -> None:
+    def publish_message(self, queue: str, message: dict, persistent: bool = False) -> None:
         """Publishes a message to the queue."""
         try:
             self.connect()
-            self.ensure_queue(queue, durable=True)
+            self.ensure_queue(queue, durable=False)
             message_body = json.dumps(message)
             self.channel.basic_publish(
                 exchange="",
@@ -53,7 +53,7 @@ class RabbitMQClient:
             logger.error(f"Failed to publish message to queue '{queue}': {e}")
             raise
 
-    def consume_messages(self, queue: str, callback: Callable, auto_ack: bool = True) -> None:
+    def consume_messages(self, queue: str, callback: Callable, auto_ack: bool = False) -> None:
         """Consumes messages from the queue with enhanced error handling."""
         while True:  # Infinite loop to ensure reconnection
             try:
