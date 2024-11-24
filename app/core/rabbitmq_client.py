@@ -3,7 +3,6 @@ import pika
 from loguru import logger
 from typing import Callable, Optional
 
-
 class RabbitMQClient:
     """
     A robust RabbitMQ client with reconnection logic and improved error handling.

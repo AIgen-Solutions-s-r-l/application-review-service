@@ -43,21 +43,21 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
         cursor = collection.find()
         job_lists = await cursor.to_list(length=None)
 
-        # Debugging: Print the fetched documents
-        for doc in job_lists:
+        # Debugging: Print the fetched documents and process them
+        for doc in job_lists:  # The loop correctly processes each document
             print(f"Document fetched from MongoDB: {doc}")
 
-        # Initialize pointers with a guard clause for non-empty jobs
-        pointers = {
-            str(doc["_id"]): 0
-            for doc in job_lists
-            if "_id" in doc and "user_id" in doc and isinstance(doc.get("jobs"), dict) and "jobs" in doc["jobs"]
-        }
+            # Initialize pointers with a guard clause for non-empty jobs
+            pointers = {
+                str(doc["_id"]): 0
+                for doc in job_lists
+                if "_id" in doc and "user_id" in doc and isinstance(doc.get("jobs"), dict) and "jobs" in doc["jobs"]
+            }
 
         while pointers:
             to_remove = []
 
-            for doc in job_lists:
+            for doc in job_lists:  # Ensure this loop processes each document
                 if "_id" not in doc or "user_id" not in doc or not isinstance(doc.get("jobs"), dict):
                     print(f"Skipping invalid document: {doc}")
                     continue
@@ -102,13 +102,13 @@ async def consume_jobs_interleaved(mongo_client: AsyncIOMotorClient):
                     to_remove.append(doc_id)
 
             # Remove documents that have been fully processed
-            for doc_id in to_remove:
+            '''for doc_id in to_remove:
                 if doc_id in pointers:
                     try:
                         await collection.delete_one({"_id": ObjectId(doc_id)})
                         del pointers[doc_id]
                     except Exception as e:
-                        print(f"Error removing document {doc_id}: {str(e)}")
+                        print(f"Error removing document {doc_id}: {str(e)}")'''
 
             await asyncio.sleep(0.1)
 
