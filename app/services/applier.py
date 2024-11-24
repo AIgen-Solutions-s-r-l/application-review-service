@@ -1,23 +1,12 @@
 import asyncio
-from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import HTTPException
-from app.core.config import Settings
+from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.rabbitmq_client import RabbitMQClient
 import json
 
-# Initialize settings and RabbitMQ client
-settings = Settings()
-rabbitmq_client = RabbitMQClient(settings.rabbitmq_url)
-rabbitmq_client.connect()
-
-async def notify_career_docs(user_id: str, resume: dict, jobs: list):
+async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: RabbitMQClient, settings):
     """
     Publishes a message to the career_docs queue with the user's resume and jobs list.
-
-    Args:
-        user_id (str): The ID of the user.
-        resume (dict): The user's resume data.
-        jobs (list): The list of jobs associated with the user.
     """
     message = {
         "user_id": user_id,
@@ -31,7 +20,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list):
     except Exception as e:
         print(f"Failed to send notification to career_docs for user {user_id}: {str(e)}")
 
-async def consume_jobs(mongo_client: AsyncIOMotorClient):
+async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: RabbitMQClient, settings):
     try:
         print("Connecting to MongoDB...")
 
@@ -78,7 +67,17 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient):
                 await process_job(user_id, job)
 
             # After processing all jobs for the user, send the triple to career_docs
-            await notify_career_docs(user_id, resume, jobs_data)
+            await notify_career_docs(user_id, resume, jobs_data, rabbitmq_client, settings)
+
+            # Commented out deletion of the processed document from MongoDB
+            # try:
+            #     result = await collection.delete_one({"_id": doc["_id"]})
+            #     if result.deleted_count == 1:
+            #         print(f"Successfully deleted document for user {user_id}")
+            #     else:
+            #         print(f"Failed to delete document for user {user_id}")
+            # except Exception as e:
+            #     print(f"Error deleting document for user {user_id}: {e}")
 
         print("All jobs have been processed.")
 

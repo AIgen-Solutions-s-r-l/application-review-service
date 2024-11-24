@@ -16,12 +16,12 @@ class RabbitMQClient:
 
     def connect(self) -> None:
         """Establishes a connection to RabbitMQ."""
+        if self.connection and not self.connection.is_closed:
+            return  # Connection is already open
         try:
-            if not self.connection or self.connection.is_closed:
-                parameters = pika.URLParameters(self.rabbitmq_url)
-                self.connection = pika.BlockingConnection(parameters)
-                self.channel = self.connection.channel()
-                logger.info("Connected to RabbitMQ")
+            self.connection = pika.BlockingConnection(pika.URLParameters(self.rabbitmq_url))
+            self.channel = self.connection.channel()
+            logger.info("RabbitMQ connection established")
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
@@ -76,7 +76,6 @@ class RabbitMQClient:
             except Exception as e:
                 logger.error(f"Error consuming messages from queue '{queue}': {e}")
                 break  # Exit on unrecoverable errors
-
 
     def close(self) -> None:
         """Closes the RabbitMQ connection."""

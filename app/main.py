@@ -7,7 +7,7 @@ from app.core.config import Settings
 from app.core.rabbitmq_client import RabbitMQClient
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from app.services.applier import consume_jobs  # Updated import
+from app.services.applier import consume_jobs
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,18 +15,16 @@ logging.basicConfig(level=logging.INFO)
 # Load settings
 settings = Settings()
 
-# RabbitMQ client
+# Initialize shared resources
 rabbit_client = RabbitMQClient(rabbitmq_url=settings.rabbitmq_url)
-rabbit_client.connect()  # Ensure the client is connected
-
-# MongoDB client
+rabbit_client.connect()
 mongo_client = AsyncIOMotorClient(settings.mongodb)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle management for app resources."""
     # Start background task for consuming jobs and sending messages
-    job_consumer_task = asyncio.create_task(consume_jobs(mongo_client))
+    job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
     logging.info("Job consumer task started")
 
     try:
