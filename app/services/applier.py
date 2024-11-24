@@ -1,10 +1,14 @@
+# app/services/applier.py
+
 import asyncio
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
-from app.core.rabbitmq_client import RabbitMQClient
+from app.core.rabbitmq_client import AsyncRabbitMQClient
 import json
+from aio_pika import IncomingMessage
 
-async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: RabbitMQClient, settings):
+
+async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
     Publishes a message to the career_docs queue with the user's resume and jobs list.
     """
@@ -15,12 +19,13 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
     }
     try:
         # Use the RabbitMQ client to publish the message
-        rabbitmq_client.publish_message(queue=settings.career_docs_queue, message=message)
+        await rabbitmq_client.publish_message(queue_name=settings.career_docs_queue, message=message)
         print(f"Notification sent to career_docs for user {user_id}")
     except Exception as e:
         print(f"Failed to send notification to career_docs for user {user_id}: {str(e)}")
 
-async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: RabbitMQClient, settings):
+
+async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncRabbitMQClient, settings):
     try:
         print("Connecting to MongoDB...")
 
@@ -69,21 +74,12 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: Rabbit
             # After processing all jobs for the user, send the triple to career_docs
             await notify_career_docs(user_id, resume, jobs_data, rabbitmq_client, settings)
 
-            # Commented out deletion of the processed document from MongoDB
-            # try:
-            #     result = await collection.delete_one({"_id": doc["_id"]})
-            #     if result.deleted_count == 1:
-            #         print(f"Successfully deleted document for user {user_id}")
-            #     else:
-            #         print(f"Failed to delete document for user {user_id}")
-            # except Exception as e:
-            #     print(f"Error deleting document for user {user_id}: {e}")
-
         print("All jobs have been processed.")
 
     except Exception as e:
         print(f"Error occurred in main processing loop: {e}")
         raise HTTPException(status_code=500, detail="Error while consuming jobs.")
+
 
 # Simulated job processing function
 async def process_job(user_id, job):
@@ -94,20 +90,23 @@ async def process_job(user_id, job):
     except Exception as e:
         print(f"Error while processing job {job} for user {user_id}: {e}")
 
-async def handle_career_docs_response(body: dict):
+
+async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, settings):
     """
-    Handle the response from the career_docs service.
-    Args:
-        body (dict): The message containing the CV, cover letter, and interview responses.
+    Consumes messages from the career_docs_response_queue.
     """
-    try:
-        print(f"Received response from career_docs: {body}")
-        # Example of processing the received response
-        cv = body.get("cv")
-        cover_letter = body.get("cover_letter")
-        interview_responses = body.get("interview_responses")
-        
-        # Process or save to MongoDB as required
-        print(f"Processing: CV={cv}, Cover Letter={cover_letter}, Interview Responses={interview_responses}")
-    except Exception as e:
-        print(f"Error handling career_docs response: {e}")
+    async def on_message(message: IncomingMessage):
+        body = message.body.decode()
+        data = json.loads(body)
+        print(f"Received response from career_docs: {data}")
+        #TODO: For now, just print something
+        print("Processing career_docs_response")
+
+        # Acknowledge the message
+        await message.ack()
+
+    await rabbitmq_client.consume_messages(
+        queue_name=settings.career_docs_response_queue,
+        callback=on_message,
+        auto_ack=False  # We'll manually acknowledge after processing
+    )

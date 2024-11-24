@@ -1,87 +1,83 @@
+# app/core/async_rabbitmq_client.py
+
 import json
-import pika
+import aio_pika
+import asyncio
 from loguru import logger
 from typing import Callable, Optional
 
-class RabbitMQClient:
+
+class AsyncRabbitMQClient:
     """
-    A robust RabbitMQ client with reconnection logic and improved error handling.
+    An asynchronous RabbitMQ client using aio_pika.
     """
 
     def __init__(self, rabbitmq_url: str) -> None:
-        """Initializes the RabbitMQ client."""
         self.rabbitmq_url = rabbitmq_url
-        self.connection: Optional[pika.BlockingConnection] = None
-        self.channel: Optional[pika.adapters.blocking_connection.BlockingChannel] = None
+        self.connection: Optional[aio_pika.RobustConnection] = None
+        self.channel: Optional[aio_pika.RobustChannel] = None
 
-    def connect(self) -> None:
+    async def connect(self) -> None:
         """Establishes a connection to RabbitMQ."""
         if self.connection and not self.connection.is_closed:
             return  # Connection is already open
         try:
-            self.connection = pika.BlockingConnection(pika.URLParameters(self.rabbitmq_url))
-            self.channel = self.connection.channel()
+            self.connection = await aio_pika.connect_robust(self.rabbitmq_url)
+            self.channel = await self.connection.channel()
             logger.info("RabbitMQ connection established")
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
 
-    def ensure_queue(self, queue: str, durable: bool = False) -> None:
+    async def ensure_queue(self, queue_name: str, durable: bool = False) -> aio_pika.Queue:
         """Ensures that a queue exists."""
-        self.connect()
+        await self.connect()
         try:
-            self.channel.queue_declare(queue=queue, durable=durable)
-            logger.info(f"Queue '{queue}' ensured (durability={durable})")
+            queue = await self.channel.declare_queue(queue_name, durable=durable)
+            logger.info(f"Queue '{queue_name}' ensured (durability={durable})")
+            return queue
         except Exception as e:
-            logger.error(f"Failed to ensure queue '{queue}': {e}")
+            logger.error(f"Failed to ensure queue '{queue_name}': {e}")
             raise
 
-    def publish_message(self, queue: str, message: dict, persistent: bool = False) -> None:
+    async def publish_message(self, queue_name: str, message: dict, persistent: bool = False) -> None:
         """Publishes a message to the queue."""
         try:
-            self.connect()
-            self.ensure_queue(queue, durable=False)
-            message_body = json.dumps(message)
-            self.channel.basic_publish(
-                exchange="",
-                routing_key=queue,
-                body=message_body,
-                properties=pika.BasicProperties(delivery_mode=2 if persistent else 1),
+            await self.connect()
+            await self.ensure_queue(queue_name, durable=False)
+            message_body = json.dumps(message).encode()
+            await self.channel.default_exchange.publish(
+                aio_pika.Message(
+                    body=message_body,
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT if persistent else aio_pika.DeliveryMode.NOT_PERSISTENT,
+                ),
+                routing_key=queue_name,
             )
-            logger.info(f"Message published to queue '{queue}': {message}")
+            logger.info(f"Message published to queue '{queue_name}': {message}")
         except Exception as e:
-            logger.error(f"Failed to publish message to queue '{queue}': {e}")
+            logger.error(f"Failed to publish message to queue '{queue_name}': {e}")
             raise
 
-    def consume_messages(self, queue: str, callback: Callable, auto_ack: bool = False) -> None:
-        """Consumes messages from the queue with enhanced error handling."""
-        while True:  # Infinite loop to ensure reconnection
+    async def consume_messages(self, queue_name: str, callback: Callable, auto_ack: bool = False) -> None:
+        """Consumes messages from the queue asynchronously."""
+        while True:
             try:
-                self.connect()
-                self.ensure_queue(queue, durable=False)
-                self.channel.basic_consume(
-                    queue=queue,
-                    on_message_callback=callback,
-                    auto_ack=auto_ack,
-                )
-                logger.info(f"Started consuming messages from queue '{queue}'")
-                self.channel.start_consuming()
-            except pika.exceptions.ConnectionClosedByBroker as e:
-                logger.error(f"Connection closed by broker: {e}")
-                self.connect()
-            except pika.exceptions.AMQPChannelError as e:
-                logger.error(f"AMQP channel error: {e}")
-                self.close()
-                break  # Exit on unrecoverable errors
+                await self.connect()
+                queue = await self.ensure_queue(queue_name, durable=False)
+                async with queue.iterator() as queue_iter:
+                    async for message in queue_iter:
+                        await callback(message)
+                        if auto_ack:
+                            await message.ack()
             except Exception as e:
-                logger.error(f"Error consuming messages from queue '{queue}': {e}")
-                break  # Exit on unrecoverable errors
+                logger.error(f"Error consuming messages from queue '{queue_name}': {e}")
+                await asyncio.sleep(5)  # Wait before reconnecting
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Closes the RabbitMQ connection."""
         if self.connection and not self.connection.is_closed:
             try:
-                self.connection.close()
+                await self.connection.close()
                 logger.info("RabbitMQ connection closed")
             except Exception as e:
                 logger.error(f"Error while closing RabbitMQ connection: {e}")
