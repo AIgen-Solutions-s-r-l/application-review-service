@@ -1,123 +1,196 @@
-# CoreService
 
-CoreService is a Python application that acts as a core service, utilizing RabbitMQ for messaging and providing various endpoints for interaction.
+# Middleware Applier Service
+
+The **Middleware Applier Service** is a Python-based application designed to handle job application processes by interfacing with MongoDB for data storage and RabbitMQ for message-based communication. It acts as a middleware layer between application data sources and job application targets.
 
 ## Table of Contents
 
+- [Overview](#overview)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Application Workflow](#application-workflow)
 - [Running the Application](#running-the-application)
-- [Running Tests](#running-tests)
+- [Testing](#testing)
 - [Folder Structure](#folder-structure)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Overview
+
+The Middleware Applier Service processes job application data and communicates with:
+
+1. **MongoDB**:
+   - Retrieves resumes and job data from a structured MongoDB database.
+2. **RabbitMQ**:
+   - Publishes job application data to a queue for further processing.
+   - Consumes messages from a queue for job recommendations.
+
+---
 
 ## Requirements
 
 - Python 3.12.7
 - RabbitMQ server
+- MongoDB server
 - Virtualenv
+
+---
 
 ## Installation
 
-1. **Clone the repository:**
+1. **Clone the Repository**:
 
-    ```sh
-    git clone https://github.com/yourusername/coreService.git
-    cd coreService
-    ```
+    \`\`\`bash
+    git clone https://github.com/yourusername/middleware-applier-service.git
+    cd middleware-applier-service
+    \`\`\`
 
-2. **Create a virtual environment:**
+2. **Create a Virtual Environment**:
 
-    ```sh
+    \`\`\`bash
     python -m venv venv
-    ```
+    \`\`\`
 
-3. **Activate the virtual environment:**
+3. **Activate the Virtual Environment**:
 
     - On Windows:
 
-        ```sh
+        \`\`\`bash
         venv\Scripts\activate
-        ```
+        \`\`\`
 
     - On macOS/Linux:
 
-        ```sh
+        \`\`\`bash
         source venv/bin/activate
-        ```
+        \`\`\`
 
-4. **Install the dependencies:**
+4. **Install Dependencies**:
 
-    ```sh
+    \`\`\`bash
     pip install -r requirements.txt
-    ```
+    \`\`\`
+
+---
 
 ## Configuration
 
-1. **Environment Variables:**
+### Environment Variables
 
-    Create a `.env` file in the project root directory with the following content:
+Create a `.env` file in the project root directory with the following configuration:
 
-    ```env
-    RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-    SERVICE_NAME=coreService
-    ```
+\`\`\`env
+RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+MONGODB_URL=mongodb://localhost:27017/
+SERVICE_NAME=middleware_applier
+APPLY_TO_JOB_QUEUE=apply_to_job_queue
+JOB_TO_APPLY_QUEUE=job_to_apply_queue
+\`\`\`
 
-    Adjust the values as needed.
+### Key Configuration Files
 
-2. **Settings Configuration:**
+- `app/core/config.py`: General configuration settings for MongoDB, RabbitMQ, and other services.
+- `app/core/appliers_config.py`: Specific configurations related to job application processing.
 
-    The application settings are managed using `pydantic-settings`. Here is an example configuration class:
+---
 
-    ```python
-    import os
-    from pydantic_settings import BaseSettings, SettingsConfigDict
+## Application Workflow
 
-    class Settings(BaseSettings):
-        rabbitmq_url: str = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
-        service_name: str = "coreService"
+1. **RabbitMQ Messaging**:
+   - Publishes resumes and associated data to the `apply_to_job_queue`.
+   - Retrieves job recommendations from the `job_to_apply_queue`.
 
-        model_config = SettingsConfigDict(env_file=".env")
-    ```
+2. **MongoDB Integration**:
+   - Retrieves resumes and user data from the `resumes` collection.
+   - Stores processed application data in a structured format.
+
+3. **Main Services**:
+   - **Applier Service** (`app/services/applier.py`):
+     - Processes resumes and job data.
+     - Interfaces with RabbitMQ to manage queues.
+
+---
 
 ## Running the Application
 
-To run the application, execute the following command:
+Run the application using the following command:
 
-```sh
-python main.py
-```
+\`\`\`bash
+python app/main.py
+\`\`\`
 
-Ensure RabbitMQ server is running and accessible via the URL specified in your `.env` file.
+Make sure MongoDB and RabbitMQ are running and accessible.
 
-## Running Tests
+---
 
-To run the test suite, use the following command:
+## Testing
 
-```sh
+The project includes unit and integration tests. To run tests, execute:
+
+\`\`\`bash
 pytest
-```
+\`\`\`
 
-The tests are located in the `tests` directory and are written using the `pytest` framework.
+### Tests Coverage:
+
+- **Database Tests**: Validate MongoDB interactions (`app/tests/test_db.py`).
+- **RabbitMQ Communication Tests**: Test message publishing and consuming (`app/tests/test_rabbit_comm.py`).
+- **Service Logic Tests**: Validate core application logic (`app/tests/test_services.py`).
+
+---
 
 ## Folder Structure
 
-- `app/`: Contains the main application code.
-    - `main.py`: Entry point of the application.
-    - `config.py`: Application configuration.
-- `tests/`: Contains unit and integration tests.
+\`\`\`
+middleware_applier_service/
+│
+├── app/
+│   ├── core/               # Core application logic (config, RabbitMQ, MongoDB)
+│   ├── logs/               # Example log files
+│   ├── models/             # Data models (if any)
+│   ├── routers/            # API endpoints (if applicable)
+│   ├── services/           # Main services (job application processing)
+│   ├── tests/              # Unit and integration tests
+│   └── main.py             # Entry point of the application
+│
+├── docs/                   # Additional documentation
+├── requirements.txt        # Python dependencies
+├── Dockerfile              # Docker support (if applicable)
+└── README.md               # Documentation
+\`\`\`
+
+---
 
 ## Contributing
 
 1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`)
-3. Make your changes.
-4. Commit your changes (`git commit -am 'Add new feature'`)
-5. Push to the branch (`git push origin feature-branch`)
-6. Create a new Pull Request.
+2. Create a feature branch:
+
+    \`\`\`bash
+    git checkout -b feature-branch
+    \`\`\`
+
+3. Commit your changes:
+
+    \`\`\`bash
+    git commit -am 'Add new feature'
+    \`\`\`
+
+4. Push your branch:
+
+    \`\`\`bash
+    git push origin feature-branch
+    \`\`\`
+
+5. Create a Pull Request.
+
+---
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+
+---
