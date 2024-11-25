@@ -43,36 +43,36 @@ The Middleware Applier Service processes job application data and communicates w
 
 1. **Clone the Repository**:
 
-    \`\`\`bash
+    ```bash
     git clone https://github.com/yourusername/middleware-applier-service.git
     cd middleware-applier-service
-    \`\`\`
+    ```
 
 2. **Create a Virtual Environment**:
 
-    \`\`\`bash
+    ```bash
     python -m venv venv
-    \`\`\`
+    ```
 
 3. **Activate the Virtual Environment**:
 
     - On Windows:
 
-        \`\`\`bash
+        ```bash
         venv\Scripts\activate
-        \`\`\`
+        ```
 
     - On macOS/Linux:
 
-        \`\`\`bash
+        ```bash
         source venv/bin/activate
-        \`\`\`
+        ```
 
 4. **Install Dependencies**:
 
-    \`\`\`bash
+    ```bash
     pip install -r requirements.txt
-    \`\`\`
+    ```
 
 ---
 
@@ -82,13 +82,13 @@ The Middleware Applier Service processes job application data and communicates w
 
 Create a `.env` file in the project root directory with the following configuration:
 
-\`\`\`env
+```env
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 MONGODB_URL=mongodb://localhost:27017/
 SERVICE_NAME=middleware_applier
 APPLY_TO_JOB_QUEUE=apply_to_job_queue
 JOB_TO_APPLY_QUEUE=job_to_apply_queue
-\`\`\`
+```
 
 ### Key Configuration Files
 
@@ -118,9 +118,9 @@ JOB_TO_APPLY_QUEUE=job_to_apply_queue
 
 Run the application using the following command:
 
-\`\`\`bash
+```bash
 python app/main.py
-\`\`\`
+```
 
 Make sure MongoDB and RabbitMQ are running and accessible.
 
@@ -130,9 +130,9 @@ Make sure MongoDB and RabbitMQ are running and accessible.
 
 The project includes unit and integration tests. To run tests, execute:
 
-\`\`\`bash
+```bash
 pytest
-\`\`\`
+```
 
 ### Tests Coverage:
 
@@ -144,7 +144,7 @@ pytest
 
 ## Folder Structure
 
-\`\`\`
+```plaintext
 middleware_applier_service/
 │
 ├── app/
@@ -160,7 +160,7 @@ middleware_applier_service/
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile              # Docker support (if applicable)
 └── README.md               # Documentation
-\`\`\`
+```
 
 ---
 
@@ -169,21 +169,21 @@ middleware_applier_service/
 1. Fork the repository.
 2. Create a feature branch:
 
-    \`\`\`bash
+    ```bash
     git checkout -b feature-branch
-    \`\`\`
+    ```
 
 3. Commit your changes:
 
-    \`\`\`bash
+    ```bash
     git commit -am 'Add new feature'
-    \`\`\`
+    ```
 
 4. Push your branch:
 
-    \`\`\`bash
+    ```bash
     git push origin feature-branch
-    \`\`\`
+    ```
 
 5. Create a Pull Request.
 
