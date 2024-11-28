@@ -74,6 +74,15 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
             # After processing all jobs for the user, send the triple to career_docs
             await notify_career_docs(user_id, resume, jobs_data, rabbitmq_client, settings)
 
+            #await asyncio.sleep(10)
+
+            #TOENABLE then: Remove the processed document from MongoDB
+            '''result = await collection.delete_one({"user_id": user_id})
+            if result.deleted_count > 0:
+                print(f"Successfully deleted document for user_id: {user_id}")
+            else:
+                print(f"Failed to delete document for user_id: {user_id}")'''
+
         print("All jobs have been processed.")
 
     except Exception as e:
