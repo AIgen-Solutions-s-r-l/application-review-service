@@ -26,69 +26,70 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
 
 
 async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncRabbitMQClient, settings):
-    try:
-        print("Connecting to MongoDB...")
+    while True:  # Infinite loop to keep consuming jobs
+        try:
+            print("Connecting to MongoDB...")
+            db = mongo_client.get_database("resumes")
+            collection = db.get_collection("jobs_to_apply_per_user")
 
-        db = mongo_client.get_database("resumes")
-        collection = db.get_collection("jobs_to_apply_per_user")
+            print("Fetching job lists from MongoDB...")
+            cursor = collection.find({}, {"_id": 0})
+            job_lists = await cursor.to_list(length=None)
 
-        print("Fetching job lists from MongoDB...")
-        cursor = collection.find({}, {"_id" : 0})
-        job_lists = await cursor.to_list(length=None)
-
-        for doc in job_lists:
-            if "user_id" not in doc:
-                print(f"Skipping invalid document")
-                continue
-
-            user_id = doc["user_id"]
-            resume = doc.get("resume", {})
-            jobs_field = doc["jobs"]
-
-            # Check if jobs_field is a JSON string and parse it
-            if isinstance(jobs_field, str):
-                try:
-                    jobs_field = json.loads(jobs_field)
-                except json.JSONDecodeError as e:
-                    print(f"Failed to parse 'jobs' JSON in document with error: {str(e)}")
+            for doc in job_lists:
+                if "user_id" not in doc:
+                    print(f"Skipping invalid document")
                     continue
 
-            if not isinstance(jobs_field, dict) or "jobs" not in jobs_field:
-                print(f"Invalid 'jobs' structure in document: {doc}")
-                continue
+                user_id = doc["user_id"]
+                resume = doc.get("resume", {})
+                jobs_field = doc["jobs"]
 
-            jobs_data = jobs_field["jobs"]
+                # Check if jobs_field is a JSON string and parse it
+                if isinstance(jobs_field, str):
+                    try:
+                        jobs_field = json.loads(jobs_field)
+                    except json.JSONDecodeError as e:
+                        print(f"Failed to parse 'jobs' JSON: {str(e)}")
+                        continue
 
-            if not isinstance(jobs_data, list):
-                print(f"'jobs' is not a list in document: {doc}")
-                continue
+                if not isinstance(jobs_field, dict) or "jobs" not in jobs_field:
+                    print(f"Invalid 'jobs' structure in document: {doc}")
+                    continue
 
-            for job in jobs_data:
-                job_id = job.get("id")
-                job_title = job.get("title")
-                print(f"Processing job '{job_title}' (Job ID: {job_id}) for user {user_id}")
+                jobs_data = jobs_field["jobs"]
 
-                # Process the job
-                await process_job(user_id, job)
+                if not isinstance(jobs_data, list):
+                    print(f"'jobs' is not a list in document: {doc}")
+                    continue
 
-            # After processing all jobs for the user, send the triple to career_docs
-            await notify_career_docs(user_id, resume, jobs_data, rabbitmq_client, settings)
+                for job in jobs_data:
+                    job_id = job.get("id")
+                    job_title = job.get("title")
+                    print(f"Processing job '{job_title}' (Job ID: {job_id}) for user {user_id}")
 
-            #await asyncio.sleep(10)
+                    # Process the job
+                    await process_job(user_id, job)
 
-            #TOENABLE then: Remove the processed document from MongoDB
-            '''result = await collection.delete_one({"user_id": user_id})
-            if result.deleted_count > 0:
-                print(f"Successfully deleted document for user_id: {user_id}")
-            else:
-                print(f"Failed to delete document for user_id: {user_id}")'''
+                # After processing all jobs for the user, send the data to career_docs
+                await notify_career_docs(user_id, resume, jobs_data, rabbitmq_client, settings)
 
-        print("All jobs have been processed.")
+                #TOENABLE then: Remove the processed document from MongoDB
+                '''result = await collection.delete_one({"user_id": user_id})
+                if result.deleted_count > 0:
+                    print(f"Successfully deleted document for user_id: {user_id}")
+                else:
+                    print(f"Failed to delete document for user_id: {user_id}")'''
 
-    except Exception as e:
-        print(f"Error occurred in main processing loop: {e}")
-        raise HTTPException(status_code=500, detail="Error while consuming jobs.")
+            print("All jobs have been processed.")
 
+            # Wait before fetching again to avoid overloading MongoDB
+            await asyncio.sleep(10)
+
+        except Exception as e:
+            print(f"Error occurred in main processing loop: {str(e)}")
+            # Optional: Add a short delay to prevent rapid retries
+            await asyncio.sleep(5)
 
 # Simulated job processing function
 async def process_job(user_id, job):
