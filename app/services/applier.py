@@ -29,7 +29,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
     while True:  # Infinite loop to keep consuming jobs
         try:
             print("Connecting to MongoDB...")
-            db = mongo_client.get_database("resumes")
+            db = mongo_client.get_database("resume")
             collection = db.get_collection("jobs_to_apply_per_user")
 
             print("Fetching job lists from MongoDB...")
