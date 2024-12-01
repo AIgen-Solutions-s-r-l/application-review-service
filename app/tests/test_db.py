@@ -23,4 +23,4 @@ async def test_insert_and_retrieve(db_client):
         retrieved_data = await collection.find_one({"_id": 1})
         assert retrieved_data["name"] == "test"
         
-        await collection.delete_one({"_id": 1})  # Clean up
+        await collection.delete_one({"_id": 1})
