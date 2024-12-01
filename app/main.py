@@ -1,5 +1,3 @@
-# app/main.py
-
 import logging
 from contextlib import asynccontextmanager
 import asyncio
@@ -7,11 +5,14 @@ from fastapi import FastAPI
 from app.core.config import Settings
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from motor.motor_asyncio import AsyncIOMotorClient
-
 from app.services.applier import consume_jobs, consume_career_docs_responses
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 # Load settings
 settings = Settings()
@@ -26,15 +27,26 @@ mongo_client = AsyncIOMotorClient(settings.mongodb)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle management for app resources."""
+    logger.info("Starting application lifespan...")
+    
     # Initialize RabbitMQ client
     rabbit_client = AsyncRabbitMQClient(rabbitmq_url=settings.rabbitmq_url)
-    await rabbit_client.connect()
+    try:
+        await rabbit_client.connect()
+        logger.info("Connected to RabbitMQ")
+    except Exception as e:
+        logger.error(f"Failed to connect to RabbitMQ: {e}")
+        raise
 
     # Start background tasks
-    job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
-    career_docs_response_task = asyncio.create_task(consume_career_docs_responses(rabbit_client, settings))
-    logging.info("Job consumer task started")
-    logging.info("Career docs response consumer task started")
+    try:
+        job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
+        career_docs_response_task = asyncio.create_task(consume_career_docs_responses(rabbit_client, settings))
+        logger.info("Job consumer task started")
+        logger.info("Career docs response consumer task started")
+    except Exception as e:
+        logger.error(f"Failed to start background tasks: {e}")
+        raise
 
     try:
         yield
@@ -46,14 +58,25 @@ async def lifespan(app: FastAPI):
             await job_consumer_task
             await career_docs_response_task
         except asyncio.CancelledError:
-            logging.info("Background tasks cancelled")
+            logger.info("Background tasks cancelled")
+        except Exception as e:
+            logger.error(f"Error while stopping background tasks: {e}")
 
         # Close RabbitMQ client
-        await rabbit_client.close()
+        try:
+            await rabbit_client.close()
+            logger.info("RabbitMQ client closed")
+        except Exception as e:
+            logger.error(f"Error while closing RabbitMQ client: {e}")
 
         # Close MongoDB client
-        mongo_client.close()
-        logging.info("MongoDB client closed")
+        try:
+            mongo_client.close()
+            logger.info("MongoDB client closed")
+        except Exception as e:
+            logger.error(f"Error while closing MongoDB client: {e}")
+
+    logger.info("Application lifespan ended")
 
 
 # Assign the lifespan function to the app
