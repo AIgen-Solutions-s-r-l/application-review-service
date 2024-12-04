@@ -36,3 +36,12 @@ class DatabaseOperationError(MiddlewareApplierException):
             detail=f"Database operation failed: {detail}",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+class InvalidRequestError(MiddlewareApplierException):
+    """Raised when an invalid request is received."""
+
+    def __init__(self, detail: str):
+        super().__init__(
+            detail=f"Invalid request id: {detail}",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )

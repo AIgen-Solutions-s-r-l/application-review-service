@@ -14,6 +14,10 @@ def process_for_applier2(data):
 
 # Appliers configuration for modularity :D
 APPLIERS = {
+    'skyvern': {
+        'queue_name': 'skyvern_queue',
+        'process_function': process_default
+    },
     'greenhouse': {
         'queue_name': 'greenhouse_queue',
         'process_function': process_default

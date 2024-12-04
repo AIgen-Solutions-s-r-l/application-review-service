@@ -1,16 +1,35 @@
 import asyncio
 import logging
 import json
+import uuid
 from fastapi import HTTPException
 from aio_pika import IncomingMessage
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.core.appliers_config import APPLIERS, process_default
-from app.core.exceptions import ResumeNotFoundError, JobApplicationError, DatabaseOperationError
+from app.core.exceptions import ResumeNotFoundError, JobApplicationError, DatabaseOperationError, InvalidRequestError
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# Mapping to store correlation IDs and their corresponding data
+# REDIS? :)
+correlation_mapping = {}
+def generate_unique_uuid(existing_mapping):
+    """
+    Generates a unique UUID that is not already present in the provided mapping.
+
+    Args:
+        existing_mapping (dict): The mapping to check for existing UUIDs.
+
+    Returns:
+        str: A unique UUID.
+    """
+    while True:
+        unique_uuid = str(uuid.uuid4())
+        if unique_uuid not in existing_mapping:
+            return unique_uuid
 
 async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
@@ -20,14 +39,23 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
         user_id (str): User ID.
         resume (dict): User's resume data.
         jobs (list): List of jobs.
+        correlation_id (str): Correlation ID for the message (optimization).
         rabbitmq_client (AsyncRabbitMQClient): RabbitMQ client instance.
         settings: Application settings.
 
     Raises:
         JobApplicationError: If notification fails.
     """
+
+    for job in jobs:
+        correlation_id = generate_unique_uuid(correlation_mapping)
+        # add correlation_id to the job data
+        job["correlation_id"] = correlation_id
+        correlation_mapping[correlation_id] = {"title": job.get("title"), "description": job.get("description")}
+
     message = {"user_id": user_id, "resume": resume, "jobs": jobs}
     try:
+        
         await rabbitmq_client.publish_message(queue_name=settings.career_docs_queue, message=message)
         logger.info(f"Notification sent to career_docs for user {user_id}")
     except Exception as e:
@@ -106,6 +134,19 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
         data = json.loads(body)
         logger.info(f"Received response from career_docs: {data}")
 
+        # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
+        for correlation_id, job_data in data.items():
+            # Get title, description from correlation_mapping
+            original_data = correlation_mapping.get(correlation_id)
+            if original_data:
+                # Update the value (job_data) with the title, description of that job
+                job_data.update(original_data)
+                 # Remove the correlation_id from the mapping if no longer needed
+                del correlation_mapping[correlation_id]
+            else:
+                logger.warning(f"Correlation ID '{correlation_id}' not found in mapping")
+                raise InvalidRequestError("Invalid correlation ID in response from career_docs")
+            
         # Process the received data and send to other appliers
         # TODO: Uncomment when other appliers are implemented.
         # await send_data_to_microservices(data, rabbitmq_client)
