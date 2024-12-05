@@ -8,15 +8,17 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.core.appliers_config import APPLIERS, process_default
 from app.core.exceptions import ResumeNotFoundError, JobApplicationError, DatabaseOperationError, InvalidRequestError
+from app.core.redis_client import RedisClient
+
+# Initialize and connect the Redis client
+redis_client = RedisClient(host='localhost', port=6379, db=0)
+redis_client.connect()
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Mapping to store correlation IDs and their corresponding data
-# REDIS? :)
-correlation_mapping = {}
-def generate_unique_uuid(existing_mapping):
+def generate_unique_uuid():
     """
     Generates a unique UUID that is not already present in the provided mapping.
 
@@ -28,8 +30,12 @@ def generate_unique_uuid(existing_mapping):
     """
     while True:
         unique_uuid = str(uuid.uuid4())
-        if unique_uuid not in existing_mapping:
-            return unique_uuid
+        try:
+            if redis_client.get(unique_uuid) is None:
+                return unique_uuid
+        except Exception as e:
+            logger.error(f"Failed to check for existing UUID: {str(e)}")
+            raise JobApplicationError("Failed to generate a unique UUID")
 
 async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
@@ -47,11 +53,25 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
         JobApplicationError: If notification fails.
     """
 
+    if not redis_client.is_connected():
+        logger.error("Redis client is not connected")
+        raise JobApplicationError("Redis client is not connected")
+
     for job in jobs:
-        correlation_id = generate_unique_uuid(correlation_mapping)
+        correlation_id = generate_unique_uuid()
         # add correlation_id to the job data
         job["correlation_id"] = correlation_id
-        correlation_mapping[correlation_id] = {"title": job.get("title"), "description": job.get("description")}
+
+        try:
+            # Serialize the dictionary to a JSON string and store in Redis
+            redis_value = json.dumps({"title": job.get("title"), "description": job.get("description")})
+            success = redis_client.set(correlation_id, redis_value)
+            if not success:
+                logger.error(f"Failed to store correlation ID '{correlation_id}' in mapping")
+                raise JobApplicationError("Failed to store correlation ID in mapping")
+        except (TypeError, ValueError) as e:
+            logger.error(f"Failed to serialize data for correlation ID '{correlation_id}': {str(e)}")
+            raise JobApplicationError("Failed to serialize data for correlation ID")
 
     message = {"user_id": user_id, "resume": resume, "jobs": jobs}
     try:
@@ -137,12 +157,17 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
         # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
         for correlation_id, job_data in data.items():
             # Get title, description from correlation_mapping
-            original_data = correlation_mapping.get(correlation_id)
-            if original_data:
+            original_data_json = redis_client.get(correlation_id)
+            if original_data_json:
+                # Deserialize the JSON string back into a dictionary
+                original_data = json.loads(original_data_json)
                 # Update the value (job_data) with the title, description of that job
                 job_data.update(original_data)
-                 # Remove the correlation_id from the mapping if no longer needed
-                del correlation_mapping[correlation_id]
+
+                success = redis_client.delete(correlation_id)
+                if not success:
+                    logger.warning(f"Failed to delete correlation ID '{correlation_id}' from mapping")
+
             else:
                 logger.warning(f"Correlation ID '{correlation_id}' not found in mapping")
                 raise InvalidRequestError("Invalid correlation ID in response from career_docs")
