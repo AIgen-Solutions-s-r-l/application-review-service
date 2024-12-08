@@ -18,13 +18,9 @@ APPLIERS = {
         'queue_name': 'skyvern_queue',
         'process_function': process_default
     },
-    'greenhouse': {
-        'queue_name': 'greenhouse_queue',
-        'process_function': process_default
-    },
-    'applier2': {
-        'queue_name': 'other_applier_queue',
-        'process_function': process_for_applier2
-    },
+    #'applier2': {
+    #    'queue_name': 'other_applier_queue',
+    #    'process_function': process_for_applier2
+    #},
     # Add more appliers as needed, letsgo!
 }

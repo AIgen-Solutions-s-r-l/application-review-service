@@ -64,7 +64,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
 
         try:
             # Serialize the dictionary to a JSON string and store in Redis
-            redis_value = json.dumps({"title": job.get("title"), "description": job.get("description")})
+            redis_value = json.dumps({"title": job.get("title"), "description": job.get("description"), "portal": job.get("portal")})
             success = redis_client.set(correlation_id, redis_value)
             if not success:
                 logger.error(f"Failed to store correlation ID '{correlation_id}' in mapping")
@@ -156,12 +156,12 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
 
         # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
         for correlation_id, job_data in data.items():
-            # Get title, description from correlation_mapping
+            # Get title, description, portal from correlation_mapping
             original_data_json = redis_client.get(correlation_id)
             if original_data_json:
                 # Deserialize the JSON string back into a dictionary
                 original_data = json.loads(original_data_json)
-                # Update the value (job_data) with the title, description of that job
+                # Update the value (job_data) with the title, description, portal of that job
                 job_data.update(original_data)
 
                 success = redis_client.delete(correlation_id)
@@ -172,9 +172,12 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
                 logger.warning(f"Correlation ID '{correlation_id}' not found in mapping")
                 raise InvalidRequestError("Invalid correlation ID in response from career_docs")
             
+        with open('career_docs_responses.json', 'a') as f:
+            f.write(json.dumps(data))
+            f.write
+
         # Process the received data and send to other appliers
-        # TODO: Uncomment when other appliers are implemented.
-        # await send_data_to_microservices(data, rabbitmq_client)
+        await send_data_to_microservices(data, rabbitmq_client)
 
         # Acknowledge the message
         await message.ack()
