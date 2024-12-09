@@ -10,9 +10,12 @@ from app.core.appliers_config import APPLIERS, process_default
 from app.core.exceptions import ResumeNotFoundError, JobApplicationError, DatabaseOperationError, InvalidRequestError
 from app.core.redis_client import RedisClient
 
-# Initialize and connect the Redis client
-redis_client = RedisClient(host='localhost', port=6379, db=0)
-redis_client.connect()
+# Initialize Redis clients for different databases
+redis_client_jobs = RedisClient(host='localhost', port=6379, db=0)  # For jobs-related data
+redis_client_resumes = RedisClient(host='localhost', port=6379, db=1)  # For resumes
+redis_client_jobs.connect()
+redis_client_resumes.connect()
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -31,7 +34,7 @@ def generate_unique_uuid():
     while True:
         unique_uuid = str(uuid.uuid4())
         try:
-            if redis_client.get(unique_uuid) is None:
+            if redis_client_jobs.get(unique_uuid) is None:
                 return unique_uuid
         except Exception as e:
             logger.error(f"Failed to check for existing UUID: {str(e)}")
@@ -53,8 +56,8 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
         JobApplicationError: If notification fails.
     """
 
-    if not redis_client.is_connected():
-        logger.error("Redis client is not connected")
+    if not redis_client_jobs.is_connected() or not redis_client_resumes.is_connected():
+        logger.error("One or more Redis clients are not connected")
         raise JobApplicationError("Redis client is not connected")
 
     for job in jobs:
@@ -65,13 +68,18 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
         try:
             # Serialize the dictionary to a JSON string and store in Redis
             redis_value = json.dumps({"title": job.get("title"), "description": job.get("description"), "portal": job.get("portal")})
-            success = redis_client.set(correlation_id, redis_value)
+            # Store the correlation ID in Redis (DB 0)
+            success = redis_client_jobs.set(correlation_id, redis_value)
             if not success:
                 logger.error(f"Failed to store correlation ID '{correlation_id}' in mapping")
                 raise JobApplicationError("Failed to store correlation ID in mapping")
         except (TypeError, ValueError) as e:
             logger.error(f"Failed to serialize data for correlation ID '{correlation_id}': {str(e)}")
             raise JobApplicationError("Failed to serialize data for correlation ID")
+
+    # Store resume in Redis (DB 1)
+    redis_client_resumes.set(f"resume:{user_id}", json.dumps(resume))
+    logger.info(f"Stored resume for user {user_id} in Redis (DB 1).")
 
     message = {"user_id": user_id, "resume": resume, "jobs": jobs}
     try:
@@ -157,24 +165,40 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
         # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
         for correlation_id, job_data in data.items():
             # Get title, description, portal from correlation_mapping
-            original_data_json = redis_client.get(correlation_id)
+            original_data_json = redis_client_jobs.get(correlation_id)
             if original_data_json:
                 # Deserialize the JSON string back into a dictionary
                 original_data = json.loads(original_data_json)
                 # Update the value (job_data) with the title, description, portal of that job
                 job_data.update(original_data)
 
-                success = redis_client.delete(correlation_id)
+                success = redis_client_jobs.delete(correlation_id)
                 if not success:
                     logger.warning(f"Failed to delete correlation ID '{correlation_id}' from mapping")
 
-            else:
+            elif correlation_id != "user_id":
                 logger.warning(f"Correlation ID '{correlation_id}' not found in mapping")
                 raise InvalidRequestError("Invalid correlation ID in response from career_docs")
-            
-        with open('career_docs_responses.json', 'a') as f:
-            f.write(json.dumps(data))
-            f.write
+        
+        # Retrieve resume from Redis (DB 1)
+        user_id = data.get("user_id")
+        if user_id:
+            redis_resume_key = f"resume:{user_id}"
+            redis_resume_json = redis_client_resumes.get(redis_resume_key)
+            if redis_resume_json:
+                resume = json.loads(redis_resume_json)
+                data["resume"] = resume  # Add resume to the response data
+
+                # Delete the resume from Redis (DB 1) after processing
+                success = redis_client_resumes.delete(redis_resume_key)
+                if not success:
+                    logger.warning(f"Failed to delete resume for user {user_id} from Redis (DB 1)")
+            else:
+                logger.warning(f"Resume for user {user_id} not found in Redis (DB 1)")
+                raise ResumeNotFoundError(f"Resume for user {user_id} not found in Redis")
+        else:
+            logger.warning("No user_id provided in the response data")
+            raise InvalidRequestError("Missing user_id in response from career_docs")
 
         # Process the received data and send to other appliers
         await send_data_to_microservices(data, rabbitmq_client)
