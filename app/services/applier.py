@@ -16,7 +16,6 @@ redis_client_resumes = RedisClient(host='localhost', port=6379, db=1)  # For res
 redis_client_jobs.connect()
 redis_client_resumes.connect()
 
-
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
