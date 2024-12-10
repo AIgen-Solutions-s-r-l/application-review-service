@@ -66,7 +66,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
 
         try:
             # Serialize the dictionary to a JSON string and store in Redis
-            redis_value = json.dumps({"title": job.get("title"), "description": job.get("description"), "portal": job.get("portal")})
+            redis_value = json.dumps({"job_id": job.get("job_id"), "title": job.get("title"), "description": job.get("description"), "portal": job.get("portal")})
             # Store the correlation ID in Redis (DB 0)
             success = redis_client_jobs.set(correlation_id, redis_value)
             if not success:
@@ -168,7 +168,7 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
             if original_data_json:
                 # Deserialize the JSON string back into a dictionary
                 original_data = json.loads(original_data_json)
-                # Update the value (job_data) with the title, description, portal of that job
+                # Update the value (job_data) with the job_id, title, description, portal of that job
                 job_data.update(original_data)
 
                 success = redis_client_jobs.delete(correlation_id)
