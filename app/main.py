@@ -6,6 +6,7 @@ from app.core.config import Settings
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.services.applier import consume_jobs, consume_career_docs_responses
+from app.routers.applier_editor import router as applier_editor_router
 
 # Configure logging
 logging.basicConfig(
@@ -22,7 +23,6 @@ app = FastAPI()
 
 # Initialize shared resources outside lifespan to avoid re-initialization
 mongo_client = AsyncIOMotorClient(settings.mongodb)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
     # Start background tasks
     try:
         job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
-        career_docs_response_task = asyncio.create_task(consume_career_docs_responses(rabbit_client, settings))
+        career_docs_response_task = asyncio.create_task(consume_career_docs_responses(mongo_client, rabbit_client, settings))
         logger.info("Job consumer task started")
         logger.info("Career docs response consumer task started")
     except Exception as e:
@@ -81,3 +81,6 @@ async def lifespan(app: FastAPI):
 
 # Assign the lifespan function to the app
 app.router.lifespan_context = lifespan
+
+# include the router
+app.include_router(applier_editor_router)

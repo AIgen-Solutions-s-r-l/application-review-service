@@ -9,7 +9,7 @@ MONGO_DETAILS = settings.mongodb
 
 # Create the MongoDB client
 client = AsyncIOMotorClient(MONGO_DETAILS)
-database = client.your_database_name
+database = client.resumes
 
 def get_mongo_client() -> AsyncIOMotorClient:
     """Return the MongoDB client instance."""
