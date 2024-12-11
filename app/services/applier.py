@@ -163,59 +163,68 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
         data = json.loads(body)
         logger.info(f"Received response from career_docs: {data}")
 
-        # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
-        for correlation_id, job_data in data.items():
-            # Get title, description, portal from correlation_mapping
-            original_data_json = redis_client_jobs.get(correlation_id)
-            if original_data_json:
-                # Deserialize the JSON string back into a dictionary
-                original_data = json.loads(original_data_json)
-                # Update the value (job_data) with the job_id, title, description, portal of that job
-                job_data.update(original_data)
-
-                success = redis_client_jobs.delete(correlation_id)
-                if not success:
-                    logger.warning(f"Failed to delete correlation ID '{correlation_id}' from mapping")
-
-            elif correlation_id != "user_id" and correlation_id != "is_batch":
-                logger.warning(f"Correlation ID '{correlation_id}' not found in mapping")
-                raise InvalidRequestError("Invalid correlation ID in response from career_docs")
-        
-        # Retrieve resume from Redis (DB 1)
+        # Extract user_id and is_batch fields
         user_id = data.get("user_id")
-        if user_id:
-            redis_resume_key = f"resume:{user_id}"
-            redis_resume_json = redis_client_resumes.get(redis_resume_key)
-            if redis_resume_json:
-                resume = json.loads(redis_resume_json)
-                data["resume"] = resume  # Add resume to the response data
+        is_batch = data.pop("is_batch", False)
 
-                # Delete the resume from Redis (DB 1) after processing
-                success = redis_client_resumes.delete(redis_resume_key)
-                if not success:
-                    logger.warning(f"Failed to delete resume for user {user_id} from Redis (DB 1)")
-            else:
-                logger.warning(f"Resume for user {user_id} not found in Redis (DB 1)")
-                raise ResumeNotFoundError(f"Resume for user {user_id} not found in Redis")
-        else:
+        if not user_id:
             logger.warning("No user_id provided in the response data")
             raise InvalidRequestError("Missing user_id in response from career_docs")
 
+        # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
+        content = {}
+        for correlation_id, job_data in data.items():
+            if correlation_id not in ("user_id", "is_batch"):
+                # Get title, description, portal from correlation_mapping
+                original_data_json = redis_client_jobs.get(correlation_id)
+                if original_data_json:
+                    # Deserialize the JSON string back into a dictionary
+                    original_data = json.loads(original_data_json)
+                    # Update the value (job_data) with the job_id, title, description, portal of that job
+                    job_data.update(original_data)
+
+                    # TODO: Maybe in future avoid deletion here & keep this for a bit longer to cache (due to non batch processing)
+                    success = redis_client_jobs.delete(correlation_id)
+                    if not success:
+                        logger.warning(f"Failed to delete correlation ID '{correlation_id}' from mapping")
+                else:
+                    logger.warning(f"Correlation ID '{correlation_id}' not found in Redis mapping")
+                    raise InvalidRequestError(f"Invalid correlation ID '{correlation_id}' in response from career_docs")
+                
+                # Add the correlation_id and its updated job_data to the content
+                content[correlation_id] = job_data
+
+        # Retrieve resume from Redis (DB 1)
+        redis_resume_key = f"resume:{user_id}"
+        redis_resume_json = redis_client_resumes.get(redis_resume_key)
+        if redis_resume_json:
+            resume = json.loads(redis_resume_json)
+
+            # Delete the resume from Redis (DB 1) after processing
+            success = redis_client_resumes.delete(redis_resume_key)
+            if not success:
+                logger.warning(f"Failed to delete resume for user {user_id} from Redis (DB 1)")
+        else:
+            logger.warning(f"Resume for user {user_id} not found in Redis (DB 1)")
+            raise ResumeNotFoundError(f"Resume for user {user_id} not found in Redis")
+
+        # Final document to store in MongoDB
+        document = {
+            "user_id": user_id,
+            "resume": resume,
+            "content": content
+        }
+
         # Process the received data and send to other appliers if  it's a batch
-        is_batch = data.pop("is_batch", False)
         if is_batch:
             await send_data_to_microservices(data, rabbitmq_client)
-
-            # Acknowledge the message
             await message.ack()
         else: # if not a batch, store the career-docs response in Mongo
             try:
-                # Connect to MongoDB
                 db = mongo_client.get_database("resumes")
                 collection = db.get_collection("career_docs_responses")
+                result = await collection.insert_one(document)
 
-                # Insert the response data into MongoDB
-                result = await collection.insert_one(data)
                 if result.acknowledged:
                     logger.info("Successfully stored career_docs response in MongoDB")
                 else:
@@ -224,6 +233,8 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
             except Exception as e:
                 logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
                 raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
+            finally:
+                await message.ack()
 
     await rabbitmq_client.consume_messages(
                 queue_name=settings.career_docs_response_queue,
