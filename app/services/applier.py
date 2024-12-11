@@ -217,7 +217,7 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
 
         # Process the received data and send to other appliers if  it's a batch
         if is_batch:
-            await send_data_to_microservices(data, rabbitmq_client)
+            await send_data_to_microservices(document, rabbitmq_client)
             await message.ack()
         else: # if not a batch, store the career-docs response in Mongo
             try:
