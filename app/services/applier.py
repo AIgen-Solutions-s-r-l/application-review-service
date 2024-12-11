@@ -39,7 +39,7 @@ def generate_unique_uuid():
             logger.error(f"Failed to check for existing UUID: {str(e)}")
             raise JobApplicationError("Failed to generate a unique UUID")
 
-async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
+async def notify_career_docs(user_id: str, resume: dict, jobs: list, is_batch: bool, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
     Publishes a message to the career_docs queue with the user's resume and jobs list.
 
@@ -47,6 +47,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
         user_id (str): User ID.
         resume (dict): User's resume data.
         jobs (list): List of jobs.
+        is_batch (bool): Whether the job applications will be processed in batch.
         correlation_id (str): Correlation ID for the message (optimization).
         rabbitmq_client (AsyncRabbitMQClient): RabbitMQ client instance.
         settings: Application settings.
@@ -80,7 +81,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
     redis_client_resumes.set(f"resume:{user_id}", json.dumps(resume))
     logger.info(f"Stored resume for user {user_id} in Redis (DB 1).")
 
-    message = {"user_id": user_id, "resume": resume, "jobs": jobs}
+    message = {"user_id": user_id, "is_batch": is_batch, "resume": resume, "jobs": jobs}
     try:
         
         await rabbitmq_client.publish_message(queue_name=settings.career_docs_queue, message=message)
@@ -115,6 +116,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                 user_id = doc.get("user_id")
                 resume = doc.get("resume", {})
                 jobs_field = doc.get("jobs")
+                is_batch = doc.get("is_batch", False)
 
                 if not user_id or not resume or not jobs_field:
                     logger.warning("Invalid document structure, skipping.")
@@ -131,7 +133,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                     logger.warning("'jobs' field is not a list, skipping document.")
                     continue
 
-                await notify_career_docs(user_id, resume, jobs, rabbitmq_client, settings)
+                await notify_career_docs(user_id, resume, jobs, rabbitmq_client, is_batch, settings)
 
                 #TOENABLE then: Remove the processed document from MongoDB
                 '''result = await collection.delete_one({"user_id": user_id})
@@ -199,17 +201,36 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
             logger.warning("No user_id provided in the response data")
             raise InvalidRequestError("Missing user_id in response from career_docs")
 
-        # Process the received data and send to other appliers
-        await send_data_to_microservices(data, rabbitmq_client)
+        # Process the received data and send to other appliers if  it's a batch
+        is_batch = data.pop("is_batch", False)
+        if is_batch:
+            await send_data_to_microservices(data, rabbitmq_client)
 
-        # Acknowledge the message
-        await message.ack()
+            # Acknowledge the message
+            await message.ack()
 
-    await rabbitmq_client.consume_messages(
-        queue_name=settings.career_docs_response_queue,
-        callback=on_message,
-        auto_ack=False  # Manually acknowledge after processing
-    )
+            await rabbitmq_client.consume_messages(
+                queue_name=settings.career_docs_response_queue,
+                callback=on_message,
+                auto_ack=False  # Manually acknowledge after processing
+            )
+        else: # if not a batch, store the career-docs response in Mongo
+            try:
+                # Connect to MongoDB
+                mongo_client = AsyncIOMotorClient(settings.mongo_url)
+                db = mongo_client.get_database("resumes")
+                collection = db.get_collection("career_docs_responses")
+
+                # Insert the response data into MongoDB
+                result = await collection.insert_one(data)
+                if result.acknowledged:
+                    logger.info("Successfully stored career_docs response in MongoDB")
+                else:
+                    logger.error("Failed to store career_docs response in MongoDB")
+                    raise DatabaseOperationError("Failed to store career_docs response in MongoDB")
+            except Exception as e:
+                logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
+                raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
 
 async def send_data_to_microservices(data, rabbitmq_client: AsyncRabbitMQClient):
     """
