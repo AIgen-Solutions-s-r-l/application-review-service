@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
     # Start background tasks
     try:
         job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
-        career_docs_response_task = asyncio.create_task(consume_career_docs_responses(rabbit_client, settings))
+        career_docs_response_task = asyncio.create_task(consume_career_docs_responses(mongo_client, rabbit_client, settings))
         logger.info("Job consumer task started")
         logger.info("Career docs response consumer task started")
     except Exception as e:

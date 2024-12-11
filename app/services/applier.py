@@ -104,7 +104,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
     """
     while True:
         try:
-            logger.info("Connecting to MongoDB...")
+            logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("jobs_to_apply_per_user")
 
@@ -150,7 +150,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
             logger.error(f"Error occurred in the processing loop: {str(e)}")
             raise DatabaseOperationError("Error while processing jobs from MongoDB")
 
-async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, settings):
+async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
     Consumes messages from the career_docs_response_queue.
 
@@ -177,7 +177,7 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
                 if not success:
                     logger.warning(f"Failed to delete correlation ID '{correlation_id}' from mapping")
 
-            elif correlation_id != "user_id":
+            elif correlation_id != "user_id" and correlation_id != "is_batch":
                 logger.warning(f"Correlation ID '{correlation_id}' not found in mapping")
                 raise InvalidRequestError("Invalid correlation ID in response from career_docs")
         
@@ -208,16 +208,9 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
 
             # Acknowledge the message
             await message.ack()
-
-            await rabbitmq_client.consume_messages(
-                queue_name=settings.career_docs_response_queue,
-                callback=on_message,
-                auto_ack=False  # Manually acknowledge after processing
-            )
         else: # if not a batch, store the career-docs response in Mongo
             try:
                 # Connect to MongoDB
-                mongo_client = AsyncIOMotorClient(settings.mongo_url)
                 db = mongo_client.get_database("resumes")
                 collection = db.get_collection("career_docs_responses")
 
@@ -232,6 +225,12 @@ async def consume_career_docs_responses(rabbitmq_client: AsyncRabbitMQClient, se
                 logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
                 raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
 
+    await rabbitmq_client.consume_messages(
+                queue_name=settings.career_docs_response_queue,
+                callback=on_message,
+                auto_ack=False  # Manually acknowledge after processing
+            )
+    
 async def send_data_to_microservices(data, rabbitmq_client: AsyncRabbitMQClient):
     """
     Processes the received data and sends it to different microservices via their queues.
