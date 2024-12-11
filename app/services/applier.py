@@ -39,7 +39,7 @@ def generate_unique_uuid():
             logger.error(f"Failed to check for existing UUID: {str(e)}")
             raise JobApplicationError("Failed to generate a unique UUID")
 
-async def notify_career_docs(user_id: str, resume: dict, jobs: list, is_batch: bool, rabbitmq_client: AsyncRabbitMQClient, settings):
+async def notify_career_docs(user_id: str, is_batch: bool, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
     Publishes a message to the career_docs queue with the user's resume and jobs list.
 
@@ -133,7 +133,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                     logger.warning("'jobs' field is not a list, skipping document.")
                     continue
 
-                await notify_career_docs(user_id, resume, jobs, rabbitmq_client, is_batch, settings)
+                await notify_career_docs(user_id, is_batch, resume, jobs, rabbitmq_client, settings)
 
                 #TOENABLE then: Remove the processed document from MongoDB
                 '''result = await collection.delete_one({"user_id": user_id})
