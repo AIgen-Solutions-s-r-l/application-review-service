@@ -5,7 +5,7 @@ import aio_pika
 import asyncio
 from loguru import logger
 from typing import Callable, Optional
-
+from app.core.config import settings
 
 class AsyncRabbitMQClient:
     """
@@ -81,3 +81,5 @@ class AsyncRabbitMQClient:
                 logger.info("RabbitMQ connection closed")
             except Exception as e:
                 logger.error(f"Error while closing RabbitMQ connection: {e}")
+
+rabbit_client = AsyncRabbitMQClient(rabbitmq_url=settings.rabbitmq_url)

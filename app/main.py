@@ -2,11 +2,12 @@ import logging
 from contextlib import asynccontextmanager
 import asyncio
 from fastapi import FastAPI
-from app.core.config import Settings
+from app.core.config import settings
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.services.applier import consume_jobs, consume_career_docs_responses
 from app.routers.applier_editor import router as applier_editor_router
+from app.core.rabbitmq_client import rabbit_client
 
 # Configure logging
 logging.basicConfig(
@@ -14,9 +15,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# Load settings
-settings = Settings()
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -29,8 +27,6 @@ async def lifespan(app: FastAPI):
     """Lifecycle management for app resources."""
     logger.info("Starting application lifespan...")
     
-    # Initialize RabbitMQ client
-    rabbit_client = AsyncRabbitMQClient(rabbitmq_url=settings.rabbitmq_url)
     try:
         await rabbit_client.connect()
         logger.info("Connected to RabbitMQ")
