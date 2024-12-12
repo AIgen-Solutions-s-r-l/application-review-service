@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
+from app.core import rabbitmq_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
+from app.services.applier import send_data_to_microservices
 
 router = APIRouter()
 
@@ -43,3 +45,45 @@ async def get_career_docs(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
+
+@router.post(
+    "/apply_post",
+    summary="Process career documents for the authenticated user (batch mode)",
+    description="Process the provided document containing resume and job responses",
+    response_model=None,
+)
+async def process_career_docs(
+    current_user=Depends(get_current_user),
+    mongo_client=Depends(get_mongo_client),
+):
+    """
+    Process career documents for the authenticated user (batch mode).
+
+    Args:
+        document (dict): The document containing user resume and career document responses.
+        current_user: The authenticated user's ID obtained from the JWT.
+        mongo_client: MongoDB client instance.
+
+    Raises:
+        HTTPException: If any error occurs during processing.
+    """
+    user_id = current_user  # Assuming `get_current_user` directly returns the user_id
+    
+    try:
+        db = mongo_client.get_database("resumes")
+        collection = db.get_collection("career_docs_responses")
+
+        documents = await collection.find({"user_id": user_id}, {"_id": 0})
+
+        if not documents:
+            raise HTTPException(status_code=404, detail="No career documents found for the user.")
+
+        # TODO: Apply at posteriori!
+        # await send_data_to_microservices(documents, ???)
+        return {"message": "Career documents processed successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
+
+    
+router = APIRouter()
