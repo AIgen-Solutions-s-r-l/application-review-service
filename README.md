@@ -114,6 +114,47 @@ JOB_TO_APPLY_QUEUE=job_to_apply_queue
 
 ---
 
+# FUTURE APPLICATION WORKFLOW
+
+![applySequence](https://github.com/user-attachments/assets/0d43dff6-9b9f-4f1c-9059-5ec5658fcece)
+
+
+High-Level Objective
+   The goal is to provide users with the ability to:
+   
+   View a summarized list of "pending" job applications.
+   Edit details of a single job application if needed.
+   Select one or more applications to apply for, and send them for processing.
+   This interaction is divided into two main sections, referred to as:
+
+Red Part: Focused on modifying individual applications.
+Blue Part: Allows users to select multiple applications to apply.
+
+Steps in the Communication Flow:
+
+Step 1: Fetch Pending Applications (Frontend → Backend)
+   Request: The Frontend sends a GET request to the Backend to retrieve all "pending" job applications for a specific user (user X).
+   Response: The Backend responds with essential information about these applications. Notably, detailed content (like career documents or generated data) is excluded to optimize performance.
+   Frontend Behavior: Displays the data as a list of cards, each summarizing a pending application.
+   
+Step 2: Modify a Single Job Application (Frontend → Backend)
+   User Action: The user selects a card to edit, triggering another request to fetch detailed information for the selected job application.
+   Request: The Frontend sends a GET request to the Backend for all data associated with the selected application.
+   Response: The Backend returns the complete information for the selected application.
+   User Interaction: The Frontend allows the user to modify individual fields of the application.
+   Request (PUT): Once changes are made, the Frontend sends a PUT request to the Backend with the updated application data.
+   Response: The Backend performs the necessary changes and confirms the update.
+
+Step 3: Apply for Multiple Applications (Frontend → Backend → Skyvern)
+   User Action: The user selects one or more applications to apply for.
+   Request (POST): The Frontend sends a POST request to the Backend with the IDs of the selected applications.
+   Backend Behavior:
+   Retrieves the complete data for the selected applications.
+   Sends the applications to Skyvern for further processing (e.g., submission or validation).
+   Skyvern's Role: Finalizes the application process by processing the received data.
+
+---
+
 ## Running the Application
 
 Run the application using the following command:
