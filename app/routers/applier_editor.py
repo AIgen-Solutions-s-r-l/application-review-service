@@ -15,7 +15,7 @@ def get_rabbitmq_client() -> AsyncRabbitMQClient:
     "/apply_content",
     summary="Retrieve career documents for the authenticated user",
     description="Fetch all career document responses associated with the user_id in the JWT",
-    response_model=List[dict],  # Adjust response model to your schema if needed
+    response_model=dict,  # Adjust response model to match the single document structure if needed
 )
 async def get_career_docs(
     current_user=Depends(get_current_user),
@@ -29,23 +29,24 @@ async def get_career_docs(
         mongo_client: MongoDB client instance.
 
     Returns:
-        List[dict]: A list of career document responses containing the 'content' field.
+        dict: A dictionary containing the 'content' field with all career document responses.
 
     Raises:
-        HTTPException: If no documents are found or a database error occurs.
+        HTTPException: If no document is found or a database error occurs.
     """
     user_id = current_user  # Assuming `get_current_user` directly returns the user_id
-    
+
     try:
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
-        documents = await collection.find({"user_id": user_id}, {"_id": 0, "content": 1}).to_list(length=None)
+        # Fetch the single document for the user_id with only the `content` field
+        document = await collection.find_one({"user_id": user_id}, {"_id": 0, "content": 1})
 
-        if not documents:
+        if not document:
             raise HTTPException(status_code=404, detail="No career documents found for the user.")
 
-        return documents
+        return document.get("content", {})  # Return only the `content` field
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
