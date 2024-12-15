@@ -22,14 +22,14 @@ async def get_career_docs(
     mongo_client=Depends(get_mongo_client)
 ):
     """
-    Retrieve career document responses for the authenticated user.
+    Retrieve career document responses for the authenticated user, excluding certain fields.
 
     Args:
         current_user: The authenticated user's ID obtained from the JWT.
         mongo_client: MongoDB client instance.
 
     Returns:
-        dict: A dictionary containing the 'content' field with all career document responses.
+        dict: A dictionary containing the 'content' field with certain fields excluded.
 
     Raises:
         HTTPException: If no document is found or a database error occurs.
@@ -46,7 +46,16 @@ async def get_career_docs(
         if not document:
             raise HTTPException(status_code=404, detail="No career documents found for the user.")
 
-        return document.get("content", {})  # Return only the `content` field
+        content = document.get("content", {})
+
+        # Exclude `resume_optimized` and `cover_letter` from each entry
+        for key in list(content.keys()):
+            if "resume_optimized" in content[key]:
+                del content[key]["resume_optimized"]
+            if "cover_letter" in content[key]:
+                del content[key]["cover_letter"]
+
+        return content
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
