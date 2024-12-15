@@ -104,7 +104,8 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
     """
     while True:
         try:
-            await asyncio.sleep(90)
+            # TODO: Implement rate-limiting logic here
+            await asyncio.sleep(10)
             logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("jobs_to_apply_per_user")
@@ -228,8 +229,11 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
                 filter_query = {"user_id": user_id}
                 update_query = {"$setOnInsert": {"resume": resume}}
 
+                # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
+                content_mod = {key: {**value, "sent": False} for key, value in content.items()}
+
                 # Merge each entry from the incoming content into the existing content
-                for key, value in content.items():
+                for key, value in content_mod.items():
                     update_query.setdefault("$set", {})[f"content.{key}"] = value
 
                 # Use upsert to insert a new document if it doesn't exist, or update the existing one
