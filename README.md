@@ -116,8 +116,8 @@ JOB_TO_APPLY_QUEUE=job_to_apply_queue
 
 # FUTURE APPLICATION WORKFLOW
 
-![applySequence](https://github.com/user-attachments/assets/0d43dff6-9b9f-4f1c-9059-5ec5658fcece)
 
+![Progetto senza titolo (46)](https://github.com/user-attachments/assets/19fa34ab-64b9-4be3-ade9-60d4183d8691)
 
 
 ## High-Level Objective
