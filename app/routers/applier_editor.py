@@ -206,6 +206,12 @@ async def process_career_docs(
 
         # Send the entire document to the microservices
         await send_data_to_microservices(document, rabbitmq)
+
+        # Update the "sent" field to True for all content items
+        await collection.update_one(
+            {"user_id": user_id},
+            {"$set": {"content.$[].sent": True}}
+        )
         
         return {"message": "Career documents processed successfully"}
 
@@ -266,7 +272,14 @@ async def process_selected_applications(
         }
 
         # Send the filtered document to RabbitMQ
-        await rabbitmq.send_message(queue_name="skyvern_queue", message=filtered_document)
+        await send_data_to_microservices(filtered_document, rabbitmq)
+
+        # Update the "sent" field to True for the selected application IDs
+        for app_id in application_ids:
+            await collection.update_one(
+                {"user_id": user_id, f"content.{app_id}": {"$exists": True}},
+                {"$set": {f"content.{app_id}.sent": True}}
+            )
 
         return {"message": "Selected applications processed successfully"}
 
