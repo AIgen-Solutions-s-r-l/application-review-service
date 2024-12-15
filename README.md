@@ -119,39 +119,148 @@ JOB_TO_APPLY_QUEUE=job_to_apply_queue
 ![applySequence](https://github.com/user-attachments/assets/0d43dff6-9b9f-4f1c-9059-5ec5658fcece)
 
 
-High-Level Objective
-   The goal is to provide users with the ability to:
-   
-   View a summarized list of "pending" job applications.
-   Edit details of a single job application if needed.
-   Select one or more applications to apply for, and send them for processing.
-   This interaction is divided into two main sections, referred to as:
 
-Red Part: Focused on modifying individual applications.
-Blue Part: Allows users to select multiple applications to apply.
+## High-Level Objective
 
-Steps in the Communication Flow:
+The goal is to provide users with the ability to:
 
-Step 1: Fetch Pending Applications (Frontend → Backend)
-   Request: The Frontend sends a GET request to the Backend to retrieve all "pending" job applications for a specific user (user X).
-   Response: The Backend responds with essential information about these applications. Notably, detailed content (like career documents or generated data) is excluded to optimize performance.
-   Frontend Behavior: Displays the data as a list of cards, each summarizing a pending application.
-   
-Step 2: Modify a Single Job Application (Frontend → Backend)
-   User Action: The user selects a card to edit, triggering another request to fetch detailed information for the selected job application.
-   Request: The Frontend sends a GET request to the Backend for all data associated with the selected application.
-   Response: The Backend returns the complete information for the selected application.
-   User Interaction: The Frontend allows the user to modify individual fields of the application.
-   Request (PUT): Once changes are made, the Frontend sends a PUT request to the Backend with the updated application data.
-   Response: The Backend performs the necessary changes and confirms the update.
+1. **View a summarized list of "pending" job applications.**
+2. **Edit details of a single job application if needed.**
+3. **Select one or more applications to apply for, and send them for processing.**
 
-Step 3: Apply for Multiple Applications (Frontend → Backend → Skyvern)
-   User Action: The user selects one or more applications to apply for.
-   Request (POST): The Frontend sends a POST request to the Backend with the IDs of the selected applications.
-   Backend Behavior:
-   Retrieves the complete data for the selected applications.
-   Sends the applications to Skyvern for further processing (e.g., submission or validation).
-   Skyvern's Role: Finalizes the application process by processing the received data.
+This interaction is divided into two main sections, referred to as:
+
+- **Red Part**: Focused on modifying individual applications.
+- **Blue Part**: Allows users to select multiple applications to apply.
+
+---
+
+## Steps in the Communication Flow:
+
+### Step 1: Fetch Pending Applications (Frontend → Backend)
+
+#### User Action
+The Frontend sends a `GET` request to retrieve all "pending" job applications for a specific user (user X).
+
+#### Backend Behavior
+The Backend responds with essential information about these applications. Detailed content (like career documents or generated data) is excluded to optimize performance.
+
+#### Frontend Behavior
+Displays the data as a list of cards, each summarizing a pending application.
+
+#### Endpoint and `curl` Example
+
+- **Endpoint**: `GET /apply_content`
+- **Description**: Retrieve all pending job applications for the authenticated user.
+
+```bash
+curl -X GET "http://localhost:8006/apply_content" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+---
+
+### Step 2: Modify a Single Job Application (Frontend → Backend)
+
+#### User Action
+The user selects a card to edit, triggering another request to fetch detailed information for the selected job application.
+
+#### Backend Behavior
+The Backend returns the complete information for the selected application.
+
+#### User Interaction
+The Frontend allows the user to modify individual fields of the application. Once changes are made, a `PUT` request is sent to the Backend with the updated application data.
+
+#### Endpoints and `curl` Examples
+
+- **Fetch Detailed Application Data**
+  - **Endpoint**: `GET /apply_content/{application_id}`
+  - **Description**: Retrieve detailed information for a single application.
+
+  ```bash
+  curl -X GET "http://localhost:8006/apply_content/{application_id}" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  ```
+
+- **Modify a Single Application**
+  - **Endpoint**: `PUT /modify_application/{application_id}`
+  - **Description**: Update specific fields of an application.
+
+  ```bash
+  curl -X PUT "http://localhost:8006/modify_application/{application_id}" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+      "job_title": "Updated Job Title",
+      "description": "Updated job description"
+  }'
+  ```
+
+---
+
+### Step 3: Apply for Multiple Applications (Frontend → Backend → Skyvern)
+
+#### User Action
+The user selects one or more applications to apply for.
+
+#### Backend Behavior
+The Backend retrieves the complete data for the selected applications and sends them to Skyvern for further processing (e.g., submission or validation).
+
+#### Skyvern's Role
+Finalizes the application process by processing the received data.
+
+#### Endpoint and `curl` Example
+
+- **Endpoint**: `POST /apply_selected`
+- **Description**: Process selected applications by sending their data for further processing.
+
+```bash
+curl -X POST "http://localhost:8006/apply_selected" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN" \
+-H "Content-Type: application/json" \
+-d '[
+    "application_id_1",
+    "application_id_2"
+]'
+```
+
+---
+
+## Summary of Endpoints and `curl` Examples
+
+### 1. Fetch All Pending Applications
+```bash
+curl -X GET "http://localhost:8006/apply_content" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### 2. Fetch Detailed Application Data
+```bash
+curl -X GET "http://localhost:8006/apply_content/{application_id}" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### 3. Modify a Single Application
+```bash
+curl -X PUT "http://localhost:8006/modify_application/{application_id}" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN" \
+-H "Content-Type: application/json" \
+-d '{
+    "job_title": "Updated Job Title",
+    "description": "Updated job description"
+}'
+```
+
+### 4. Apply for Selected Applications
+```bash
+curl -X POST "http://localhost:8006/apply_selected" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN" \
+-H "Content-Type: application/json" \
+-d '[
+    "application_id_1",
+    "application_id_2"
+]'
+```
 
 ---
 
