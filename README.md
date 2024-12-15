@@ -224,6 +224,28 @@ curl -X POST "http://localhost:8006/apply_selected" \
 ]'
 ```
 
+### Optimized Process: Apply to All
+The /apply_all endpoint **efficiently** handles the scenario where the user selects to apply to **all** pending jobs by sending a single document containing all applications for the authenticated user.
+
+How It Works:
+
+Fetch User's Data:
+The endpoint retrieves the user's single document from MongoDB that contains their resume and all job applications in the content field.
+
+Send Entire Document:
+The complete document, including all applications, is sent to RabbitMQ for processing in one batch.
+
+Optimization:
+Avoids fetching and sending each application individually, reducing overhead and improving processing time.
+
+Example curl for Apply All
+
+```
+curl -X POST "http://localhost:8006/apply_all" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN" \
+-H "Content-Type: application/json"
+```
+
 ---
 
 ## Summary of Endpoints and `curl` Examples
