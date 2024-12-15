@@ -1,6 +1,6 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List
+from typing import Any, List, Dict
 from app.core.rabbitmq_client import rabbit_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
@@ -107,6 +107,64 @@ async def get_application_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch application data: {str(e)}")
 
+@router.put(
+    "/modify_application/{application_id}",
+    summary="Modify specific fields of an application",
+    description="Update specific fields of an application within the authenticated user's content",
+    response_model=dict,
+)
+async def modify_application_content(
+    application_id: str,  # The ID of the application to be updated
+    updates: Dict[str, Any],  # A dictionary of fields to update with new values
+    current_user=Depends(get_current_user),
+    mongo_client=Depends(get_mongo_client)
+):
+    """
+    Modify specific fields of an application within the user's content.
+
+    Args:
+        application_id: The unique ID of the application to modify.
+        updates: A dictionary containing the fields to be updated and their new values.
+        current_user: The authenticated user's ID obtained from the JWT.
+        mongo_client: MongoDB client instance.
+
+    Returns:
+        dict: A message indicating the success of the operation.
+
+    Raises:
+        HTTPException: If the application ID is not found or an error occurs during the update.
+    """
+    user_id = current_user  # Assuming `get_current_user` directly returns the user_id
+
+    try:
+        db = mongo_client.get_database("resumes")
+        collection = db.get_collection("career_docs_responses")
+
+        # Ensure the application exists in the user's content
+        existing_document = await collection.find_one(
+            {"user_id": user_id, f"content.{application_id}": {"$exists": True}},
+            {"_id": 0, f"content.{application_id}": 1}
+        )
+
+        if not existing_document:
+            raise HTTPException(status_code=404, detail=f"Application ID '{application_id}' not found.")
+
+        # Perform the update
+        update_query = {f"content.{application_id}.{field}": value for field, value in updates.items()}
+        result = await collection.update_one(
+            {"user_id": user_id},
+            {"$set": update_query}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail=f"Failed to update application ID '{application_id}'.")
+
+        return {"message": f"Application ID '{application_id}' updated successfully."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to modify application: {str(e)}")
+
+
 # This applies to everything of that user!
 # To use when the user selects to apply to all jobs (optimization)
 @router.post(
@@ -153,8 +211,6 @@ async def process_career_docs(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process career documents: {str(e)}")
-
-from typing import List
 
 @router.post(
     "/apply_selected",
@@ -210,11 +266,7 @@ async def process_selected_applications(
         }
 
         # Send the filtered document to RabbitMQ
-        # await rabbitmq.send_message(queue_name="skyvern_queue", message=filtered_document)
-
-        # log the filtered document
-        with open("filtered_document.json", "w") as f:
-            json.dump(filtered_document, f, indent=4)
+        await rabbitmq.send_message(queue_name="skyvern_queue", message=filtered_document)
 
         return {"message": "Selected applications processed successfully"}
 

@@ -11,3 +11,11 @@ curl -X POST "http://localhost:8006/apply_selected" \
     "41a1be8d-a1fc-4221-a3cd-1febcb3c7797",
     "a528b3d1-99ad-4bb6-99c0-dc79f97885b8"
 ]'
+
+curl -X PUT "http://localhost:8006/modify_application/41a1be8d-a1fc-4221-a3cd-1febcb3c7797" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0Mjg5NDA5fQ.ft-FwjleJp6VZzyd3DJjJ5ynP-z6OCENgORA7uXwzjo" \
+-H "Content-Type: application/json" \
+-d '{
+    "job_title": "SIUM Engineer",
+    "description": "Updated job description"
+}'
