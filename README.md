@@ -284,6 +284,12 @@ curl -X POST "http://localhost:8006/apply_selected" \
 ]'
 ```
 
+### 5. Apply all (opt)
+```
+curl -X POST "http://localhost:8006/apply_all" \
+-H "Authorization: Bearer YOUR_JWT_TOKEN" \
+-H "Content-Type: application/json"
+```
 ---
 
 ## Running the Application
