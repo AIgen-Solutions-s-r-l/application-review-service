@@ -223,13 +223,24 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
             try:
                 db = mongo_client.get_database("resumes")
                 collection = db.get_collection("career_docs_responses")
-                result = await collection.insert_one(document)
+                
+                filter_query = {"user_id": user_id}
+                update_query = {"$setOnInsert": {"resume": resume}}
 
-                if result.acknowledged:
-                    logger.info("Successfully stored career_docs response in MongoDB")
+                # Merge each entry from the incoming content into the existing content
+                for key, value in content.items():
+                    update_query.setdefault("$set", {})[f"content.{key}"] = value
+
+                # Use upsert to insert a new document if it doesn't exist, or update the existing one
+                result = await collection.update_one(filter_query, update_query, upsert=True)
+
+                if result.upserted_id:
+                    logger.info("Successfully inserted new document for user_id: %s", user_id)
+                elif result.modified_count > 0:
+                    logger.info("Successfully updated existing document for user_id: %s", user_id)
                 else:
-                    logger.error("Failed to store career_docs response in MongoDB")
-                    raise DatabaseOperationError("Failed to store career_docs response in MongoDB")
+                    logger.error("Failed to insert or update document for user_id: %s", user_id)
+                    raise DatabaseOperationError("Failed to insert or update document in MongoDB")
             except Exception as e:
                 logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
                 raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
