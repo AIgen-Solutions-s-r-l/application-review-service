@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from app.core.rabbitmq_client import rabbit_client
@@ -106,9 +107,10 @@ async def get_application_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch application data: {str(e)}")
 
-# TODO: this applies to everything of that user!
+# This applies to everything of that user!
+# To use when the user selects to apply to all jobs (optimization)
 @router.post(
-    "/apply_post",
+    "/apply_all",
     summary="Process career documents for the authenticated user (batch mode)",
     description="Process the provided document containing resume and job responses",
     response_model=None,
@@ -122,12 +124,64 @@ async def process_career_docs(
     Process career documents for the authenticated user (batch mode).
 
     Args:
-        document (dict): The document containing user resume and career document responses.
         current_user: The authenticated user's ID obtained from the JWT.
         mongo_client: MongoDB client instance.
+        rabbitmq: RabbitMQ client instance.
+
+    Returns:
+        dict: Success message if the documents are processed.
 
     Raises:
         HTTPException: If any error occurs during processing.
+    """
+    user_id = current_user
+    
+    try:
+        db = mongo_client.get_database("resumes")
+        collection = db.get_collection("career_docs_responses")
+
+        # Fetch the single document for the user_id
+        document = await collection.find_one({"user_id": user_id}, {"_id": 0})
+
+        if not document:
+            raise HTTPException(status_code=404, detail="No career documents found for the user.")
+
+        # Send the entire document to the microservices
+        await send_data_to_microservices(document, rabbitmq)
+        
+        return {"message": "Career documents processed successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process career documents: {str(e)}")
+
+from typing import List
+
+@router.post(
+    "/apply_selected",
+    summary="Process selected applications for the authenticated user",
+    description="Send a single document containing only the specified applications to RabbitMQ for processing",
+    response_model=dict,
+)
+async def process_selected_applications(
+    application_ids: List[str],  # List of application IDs from the request body
+    current_user=Depends(get_current_user),
+    mongo_client=Depends(get_mongo_client),
+    rabbitmq: AsyncRabbitMQClient = Depends(get_rabbitmq_client)
+):
+    """
+    Process selected applications for the authenticated user.
+
+    Args:
+        application_ids: List of application IDs to process.
+        current_user: The authenticated user's ID obtained from the JWT.
+        mongo_client: MongoDB client instance.
+        rabbitmq: RabbitMQ client instance.
+
+    Returns:
+        dict: Success message if the specified applications are processed.
+
+    Raises:
+        HTTPException: If any error occurs during processing or if IDs are not found.
     """
     user_id = current_user  # Assuming `get_current_user` directly returns the user_id
     
@@ -135,14 +189,34 @@ async def process_career_docs(
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
-        documents = await collection.find({"user_id": user_id}, {"_id": 0})
+        # Fetch the user's document containing all their applications
+        document = await collection.find_one({"user_id": user_id}, {"_id": 0})
 
-        if not documents:
+        if not document or "content" not in document:
             raise HTTPException(status_code=404, detail="No career documents found for the user.")
 
-        # Apply at posteriori!
-        await send_data_to_microservices(documents, rabbitmq)
-        return {"message": "Career documents processed successfully"}
+        # Extract and filter the `content` field to include only the selected application IDs
+        content = document["content"]
+        filtered_content = {app_id: content[app_id] for app_id in application_ids if app_id in content}
+
+        if not filtered_content:
+            raise HTTPException(status_code=404, detail="None of the specified application IDs were found.")
+
+        # Create the filtered document to send
+        filtered_document = {
+            "user_id": user_id,
+            "resume": document.get("resume", {}),
+            "content": filtered_content
+        }
+
+        # Send the filtered document to RabbitMQ
+        # await rabbitmq.send_message(queue_name="skyvern_queue", message=filtered_document)
+
+        # log the filtered document
+        with open("filtered_document.json", "w") as f:
+            json.dump(filtered_document, f, indent=4)
+
+        return {"message": "Selected applications processed successfully"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process selected applications: {str(e)}")

@@ -1,4 +1,13 @@
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "johndoe", "password": "securepassword"}'
 
 curl -X GET "http://localhost:8006/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0Mjg0NTE2fQ.YhEExHFhYUxrImtgjoqfPLO2MEKB15VSXdOiVEOjZlU"
+
 curl -X GET "http://localhost:8006/apply_content/41a1be8d-a1fc-4221-a3cd-1febcb3c7797" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0Mjg0NTE2fQ.YhEExHFhYUxrImtgjoqfPLO2MEKB15VSXdOiVEOjZlU"
+
+curl -X POST "http://localhost:8006/apply_selected" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0Mjg5NDA5fQ.ft-FwjleJp6VZzyd3DJjJ5ynP-z6OCENgORA7uXwzjo" \
+-H "Content-Type: application/json" \
+-d '[
+    "41a1be8d-a1fc-4221-a3cd-1febcb3c7797",
+    "a528b3d1-99ad-4bb6-99c0-dc79f97885b8"
+]'
