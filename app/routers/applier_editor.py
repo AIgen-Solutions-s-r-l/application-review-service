@@ -169,7 +169,7 @@ async def modify_application_content(
 # To use when the user selects to apply to all jobs (optimization)
 @router.post(
     "/apply_all",
-    summary="Process career documents for the authenticated user (batch mode)",
+    summary="Process career documents for the authenticated user",
     description="Process the provided document containing resume and job responses",
     response_model=None,
 )
@@ -179,7 +179,7 @@ async def process_career_docs(
     rabbitmq: AsyncRabbitMQClient = Depends(get_rabbitmq_client)
 ):
     """
-    Process career documents for the authenticated user (batch mode).
+    Process career documents for the authenticated user.
 
     Args:
         current_user: The authenticated user's ID obtained from the JWT.

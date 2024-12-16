@@ -39,7 +39,7 @@ def generate_unique_uuid():
             logger.error(f"Failed to check for existing UUID: {str(e)}")
             raise JobApplicationError("Failed to generate a unique UUID")
 
-async def notify_career_docs(user_id: str, is_batch: bool, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
+async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
     Publishes a message to the career_docs queue with the user's resume and jobs list.
 
@@ -47,7 +47,6 @@ async def notify_career_docs(user_id: str, is_batch: bool, resume: dict, jobs: l
         user_id (str): User ID.
         resume (dict): User's resume data.
         jobs (list): List of jobs.
-        is_batch (bool): Whether the job applications will be processed in batch.
         correlation_id (str): Correlation ID for the message (optimization).
         rabbitmq_client (AsyncRabbitMQClient): RabbitMQ client instance.
         settings: Application settings.
@@ -81,7 +80,7 @@ async def notify_career_docs(user_id: str, is_batch: bool, resume: dict, jobs: l
     redis_client_resumes.set(f"resume:{user_id}", json.dumps(resume))
     logger.info(f"Stored resume for user {user_id} in Redis (DB 1).")
 
-    message = {"user_id": user_id, "is_batch": is_batch, "resume": resume, "jobs": jobs}
+    message = {"user_id": user_id, "resume": resume, "jobs": jobs}
     try:
         
         await rabbitmq_client.publish_message(queue_name=settings.career_docs_queue, message=message)
@@ -118,7 +117,6 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                 user_id = doc.get("user_id")
                 resume = doc.get("resume", {})
                 jobs_field = doc.get("jobs")
-                is_batch = doc.get("is_batch", False)
 
                 if not user_id or not resume or not jobs_field:
                     logger.warning("Invalid document structure, skipping.")
@@ -135,7 +133,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                     logger.warning("'jobs' field is not a list, skipping document.")
                     continue
 
-                await notify_career_docs(user_id, is_batch, resume, jobs, rabbitmq_client, settings)
+                await notify_career_docs(user_id, resume, jobs, rabbitmq_client, settings)
 
                 #TOENABLE then: Remove the processed document from MongoDB
                 '''result = await collection.delete_one({"user_id": user_id})
@@ -165,9 +163,8 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
         data = json.loads(body)
         logger.info(f"Received response from career_docs: {data}")
 
-        # Extract user_id and is_batch fields
+        # Extract user_id field
         user_id = data.get("user_id")
-        is_batch = data.pop("is_batch", False)
 
         if not user_id:
             logger.warning("No user_id provided in the response data")
@@ -176,7 +173,7 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
         # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
         content = {}
         for correlation_id, job_data in data.items():
-            if correlation_id not in ("user_id", "is_batch"):
+            if correlation_id != "user_id":
                 # Get title, description, portal from correlation_mapping
                 original_data_json = redis_client_jobs.get(correlation_id)
                 if original_data_json:
@@ -210,47 +207,35 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
             logger.warning(f"Resume for user {user_id} not found in Redis (DB 1)")
             raise ResumeNotFoundError(f"Resume for user {user_id} not found in Redis")
 
-        # Final document to store in MongoDB
-        document = {
-            "user_id": user_id,
-            "resume": resume,
-            "content": content
-        }
+        try:
+            db = mongo_client.get_database("resumes")
+            collection = db.get_collection("career_docs_responses")
+            
+            filter_query = {"user_id": user_id}
+            update_query = {"$setOnInsert": {"resume": resume}}
 
-        # Process the received data and send to other appliers if  it's a batch
-        if is_batch:
-            await send_data_to_microservices(document, rabbitmq_client)
+            # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
+            content_mod = {key: {**value, "sent": False} for key, value in content.items()}
+
+            # Merge each entry from the incoming content into the existing content
+            for key, value in content_mod.items():
+                update_query.setdefault("$set", {})[f"content.{key}"] = value
+
+            # Use upsert to insert a new document if it doesn't exist, or update the existing one
+            result = await collection.update_one(filter_query, update_query, upsert=True)
+
+            if result.upserted_id:
+                logger.info("Successfully inserted new document for user_id: %s", user_id)
+            elif result.modified_count > 0:
+                logger.info("Successfully updated existing document for user_id: %s", user_id)
+            else:
+                logger.error("Failed to insert or update document for user_id: %s", user_id)
+                raise DatabaseOperationError("Failed to insert or update document in MongoDB")
+        except Exception as e:
+            logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
+            raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
+        finally:
             await message.ack()
-        else: # if not a batch, store the career-docs response in Mongo
-            try:
-                db = mongo_client.get_database("resumes")
-                collection = db.get_collection("career_docs_responses")
-                
-                filter_query = {"user_id": user_id}
-                update_query = {"$setOnInsert": {"resume": resume}}
-
-                # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
-                content_mod = {key: {**value, "sent": False} for key, value in content.items()}
-
-                # Merge each entry from the incoming content into the existing content
-                for key, value in content_mod.items():
-                    update_query.setdefault("$set", {})[f"content.{key}"] = value
-
-                # Use upsert to insert a new document if it doesn't exist, or update the existing one
-                result = await collection.update_one(filter_query, update_query, upsert=True)
-
-                if result.upserted_id:
-                    logger.info("Successfully inserted new document for user_id: %s", user_id)
-                elif result.modified_count > 0:
-                    logger.info("Successfully updated existing document for user_id: %s", user_id)
-                else:
-                    logger.error("Failed to insert or update document for user_id: %s", user_id)
-                    raise DatabaseOperationError("Failed to insert or update document in MongoDB")
-            except Exception as e:
-                logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
-                raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
-            finally:
-                await message.ack()
 
     await rabbitmq_client.consume_messages(
                 queue_name=settings.career_docs_response_queue,
