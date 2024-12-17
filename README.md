@@ -230,7 +230,7 @@ The /apply_all endpoint **efficiently** handles the scenario where the user sele
 How It Works:
 
 Fetch User's Data:
-The endpoint retrieves the user's single document from MongoDB that contains their resume and all job applications in the content field.
+The endpoint retrieves the user's single document from MongoDB that contains all job applications in the content field.
 
 Send Entire Document:
 The complete document, including all applications, is sent to RabbitMQ for processing in one batch.
