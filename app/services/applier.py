@@ -12,9 +12,7 @@ from app.core.redis_client import RedisClient
 
 # Initialize Redis clients for different databases
 redis_client_jobs = RedisClient(host='localhost', port=6379, db=0)  # For jobs-related data
-redis_client_resumes = RedisClient(host='localhost', port=6379, db=1)  # For resumes
 redis_client_jobs.connect()
-redis_client_resumes.connect()
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -55,7 +53,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
         JobApplicationError: If notification fails.
     """
 
-    if not redis_client_jobs.is_connected() or not redis_client_resumes.is_connected():
+    if not redis_client_jobs.is_connected():
         logger.error("One or more Redis clients are not connected")
         raise JobApplicationError("Redis client is not connected")
 
@@ -75,10 +73,6 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
         except (TypeError, ValueError) as e:
             logger.error(f"Failed to serialize data for correlation ID '{correlation_id}': {str(e)}")
             raise JobApplicationError("Failed to serialize data for correlation ID")
-
-    # Store resume in Redis (DB 1)
-    redis_client_resumes.set(f"resume:{user_id}", json.dumps(resume))
-    logger.info(f"Stored resume for user {user_id} in Redis (DB 1).")
 
     message = {"user_id": user_id, "resume": resume, "jobs": jobs}
     try:
@@ -193,26 +187,12 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
                 # Add the correlation_id and its updated job_data to the content
                 content[correlation_id] = job_data
 
-        # Retrieve resume from Redis (DB 1)
-        redis_resume_key = f"resume:{user_id}"
-        redis_resume_json = redis_client_resumes.get(redis_resume_key)
-        if redis_resume_json:
-            resume = json.loads(redis_resume_json)
-
-            # Delete the resume from Redis (DB 1) after processing
-            success = redis_client_resumes.delete(redis_resume_key)
-            if not success:
-                logger.warning(f"Failed to delete resume for user {user_id} from Redis (DB 1)")
-        else:
-            logger.warning(f"Resume for user {user_id} not found in Redis (DB 1)")
-            raise ResumeNotFoundError(f"Resume for user {user_id} not found in Redis")
-
         try:
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("career_docs_responses")
             
             filter_query = {"user_id": user_id}
-            update_query = {"$setOnInsert": {"resume": resume}}
+            update_query = {"$setOnInsert": {"user_id": user_id}}
 
             # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
             content_mod = {key: {**value, "sent": False} for key, value in content.items()}
