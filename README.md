@@ -1,7 +1,7 @@
 
-# Middleware Applier Service
+# EditViewApp Service
 
-The **Middleware Applier Service** is a Python-based application designed to handle job application processes by interfacing with MongoDB for data storage and RabbitMQ for message-based communication. It acts as a middleware layer between application data sources and job application targets.
+The **EditViewApp Service** is a Python-based application designed to handle job application processes by interfacing with MongoDB for data storage and RabbitMQ for message-based communication. It acts as a middleware layer between application data sources and job application targets.
 
 ## Table of Contents
 
@@ -114,8 +114,12 @@ JOB_TO_APPLY_QUEUE=job_to_apply_queue
 
 ---
 
-# FUTURE APPLICATION WORKFLOW
+# APPLICATION WORKFLOW BACKEND SIDE
 
+![AppToCareer 3](https://github.com/user-attachments/assets/bb656f1a-1151-4652-98a4-d2217abbe4cf)
+
+
+# APPLICATION WORKFLOW **FRONTEND** SIDE
 
 ![Progetto senza titolo (46)](https://github.com/user-attachments/assets/19fa34ab-64b9-4be3-ade9-60d4183d8691)
 
