@@ -7,7 +7,7 @@ from aio_pika import IncomingMessage
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.core.appliers_config import APPLIERS, process_default
-from app.core.exceptions import ResumeNotFoundError, JobApplicationError, DatabaseOperationError, InvalidRequestError
+from app.core.exceptions import JobApplicationError, DatabaseOperationError, InvalidRequestError
 from app.core.redis_client import RedisClient
 
 # Initialize Redis clients for different databases
@@ -37,13 +37,12 @@ def generate_unique_uuid():
             logger.error(f"Failed to check for existing UUID: {str(e)}")
             raise JobApplicationError("Failed to generate a unique UUID")
 
-async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
+async def notify_career_docs(user_id: str, jobs: list, rabbitmq_client: AsyncRabbitMQClient, settings):
     """
-    Publishes a message to the career_docs queue with the user's resume and jobs list.
+    Publishes a message to the career_docs queue with the user_id and jobs list.
 
     Args:
         user_id (str): User ID.
-        resume (dict): User's resume data.
         jobs (list): List of jobs.
         correlation_id (str): Correlation ID for the message (optimization).
         rabbitmq_client (AsyncRabbitMQClient): RabbitMQ client instance.
@@ -74,7 +73,7 @@ async def notify_career_docs(user_id: str, resume: dict, jobs: list, rabbitmq_cl
             logger.error(f"Failed to serialize data for correlation ID '{correlation_id}': {str(e)}")
             raise JobApplicationError("Failed to serialize data for correlation ID")
 
-    message = {"user_id": user_id, "resume": resume, "jobs": jobs}
+    message = {"user_id": user_id, "jobs": jobs}
     try:
         
         await rabbitmq_client.publish_message(queue_name=settings.career_docs_queue, message=message)
@@ -109,25 +108,28 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
 
             for doc in job_lists:
                 user_id = doc.get("user_id")
-                resume = doc.get("resume", {})
                 jobs_field = doc.get("jobs")
 
-                if not user_id or not resume or not jobs_field:
+                if not user_id or not jobs_field:
                     logger.warning("Invalid document structure, skipping.")
                     continue
 
                 try:
-                    jobs_field = json.loads(jobs_field) if isinstance(jobs_field, str) else jobs_field
-                except json.JSONDecodeError:
-                    logger.warning("Failed to parse 'jobs' JSON, skipping document.")
+                    # Parse each JSON string in the list
+                    if isinstance(jobs_field, list):
+                        jobs_field = [json.loads(job) if isinstance(job, str) else job for job in jobs_field]
+                    else:
+                        logger.warning("'jobs' field is not a list, skipping document.")
+                        continue
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse 'jobs' JSON: {e}, skipping document.")
                     continue
 
-                jobs = jobs_field.get("jobs", [])
-                if not isinstance(jobs, list):
-                    logger.warning("'jobs' field is not a list, skipping document.")
+                if not isinstance(jobs_field, list) or not all(isinstance(job, dict) for job in jobs_field):
+                    logger.warning("'jobs' field does not contain valid job dictionaries, skipping document.")
                     continue
 
-                await notify_career_docs(user_id, resume, jobs, rabbitmq_client, settings)
+                await notify_career_docs(user_id, jobs_field, rabbitmq_client, settings)
 
                 #TOENABLE then: Remove the processed document from MongoDB
                 '''result = await collection.delete_one({"user_id": user_id})

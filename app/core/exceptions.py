@@ -7,17 +7,6 @@ class MiddlewareApplierException(HTTPException):
             "message": detail
         })
 
-
-class ResumeNotFoundError(MiddlewareApplierException):
-    """Raised when a resume is not found in the database."""
-
-    def __init__(self, user_id: int):
-        super().__init__(
-            detail=f"Resume not found for user_id: {user_id}",
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-
-
 class JobApplicationError(MiddlewareApplierException):
     """Raised when there is an error in the job application process."""
 
