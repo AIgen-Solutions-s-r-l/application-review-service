@@ -170,7 +170,7 @@ async def modify_application_content(
 @router.post(
     "/apply_all",
     summary="Process career documents for the authenticated user",
-    description="Process the provided document containing resume and job responses",
+    description="Process the provided document containing job responses",
     response_model=None,
 )
 async def process_career_docs(
@@ -267,7 +267,6 @@ async def process_selected_applications(
         # Create the filtered document to send
         filtered_document = {
             "user_id": user_id,
-            "resume": document.get("resume", {}),
             "content": filtered_content
         }
 

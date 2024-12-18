@@ -14,16 +14,15 @@ async def test_notify_career_docs(mock_rabbitmq_client):
     mock_settings.career_docs_queue = "career_docs"
 
     user_id = "123"
-    resume = {"name": "Test Resume"}
     jobs = [{"title": "Engineer", "description": "Engineering job", "portal": "Job Portal"}]
 
     # Call the function
-    await notify_career_docs(user_id, resume, jobs, mock_rabbitmq_client, mock_settings)
+    await notify_career_docs(user_id, jobs, mock_rabbitmq_client, mock_settings)
 
     # Assert that RabbitMQ was called correctly
     mock_rabbitmq_client.publish_message.assert_called_once_with(
         queue_name="career_docs",
-        message={"user_id": user_id, "resume": resume, "jobs": jobs},
+        message={"user_id": user_id, "jobs": jobs},
     )
     
 '''@pytest.mark.asyncio
@@ -39,7 +38,6 @@ async def test_consume_jobs(caplog):
     mock_cursor.to_list.return_value = [
         {
             "user_id": "123",
-            "resume": {"name": "Test Resume"},
             "jobs": json.dumps({"jobs": [{"title": "Engineer", "description": "Engineering job", "portal": "Job Portal"}]}),
         }
     ]

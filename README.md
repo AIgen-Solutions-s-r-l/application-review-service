@@ -23,7 +23,7 @@ The **Middleware Applier Service** is a Python-based application designed to han
 The Middleware Applier Service processes job application data and communicates with:
 
 1. **MongoDB**:
-   - Retrieves resumes and job data from a structured MongoDB database.
+   - Retrieves job data from a structured MongoDB database.
 2. **RabbitMQ**:
    - Publishes job application data to a queue for further processing.
    - Consumes messages from a queue for job recommendations.
@@ -100,16 +100,16 @@ JOB_TO_APPLY_QUEUE=job_to_apply_queue
 ## Application Workflow
 
 1. **RabbitMQ Messaging**:
-   - Publishes resumes and associated data to the `apply_to_job_queue`.
+   - Publishes  associated data to the `apply_to_job_queue`.
    - Retrieves job recommendations from the `job_to_apply_queue`.
 
 2. **MongoDB Integration**:
-   - Retrieves resumes and user data from the `resumes` collection.
+   - Retrieves user data from the `resumes` collection.
    - Stores processed application data in a structured format.
 
 3. **Main Services**:
    - **Applier Service** (`app/services/applier.py`):
-     - Processes resumes and job data.
+     - Processes job data.
      - Interfaces with RabbitMQ to manage queues.
 
 ---
