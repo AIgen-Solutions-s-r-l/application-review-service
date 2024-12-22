@@ -2,7 +2,6 @@ import asyncio
 import logging
 import json
 import uuid
-from fastapi import HTTPException
 from aio_pika import IncomingMessage
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.rabbitmq_client import AsyncRabbitMQClient
@@ -131,13 +130,6 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
 
                 await notify_career_docs(user_id, jobs_field, rabbitmq_client, settings)
 
-                #TOENABLE then: Remove the processed document from MongoDB
-                '''result = await collection.delete_one({"user_id": user_id})
-                if result.deleted_count > 0:
-                    print(f"Successfully deleted document for user_id: {user_id}")
-                else:
-                    print(f"Failed to delete document for user_id: {user_id}")'''
-
             # TODO: wait for frontend for actual rate-limiting logic
             logger.info("All jobs have been processed. Sleeping before the next iteration.")
             await asyncio.sleep(999)
@@ -157,7 +149,7 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
     async def on_message(message: IncomingMessage):
         body = message.body.decode()
         data = json.loads(body)
-        logger.info(f"Received response from career_docs: {data}")
+        logger.info(f"Received response from career_docs 1: {data}")
 
         # Extract user_id field
         user_id = data.get("user_id")
@@ -198,6 +190,8 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
 
             # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
             content_mod = {key: {**value, "sent": False} for key, value in content.items()}
+
+            logger.info(f"Received response from career_docs 2: {content_mod}")
 
             # Merge each entry from the incoming content into the existing content
             for key, value in content_mod.items():
