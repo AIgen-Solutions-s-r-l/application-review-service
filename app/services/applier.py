@@ -96,7 +96,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
     while True:
         try:
             # TODO: Implement rate-limiting logic here
-            await asyncio.sleep(10)
+            await asyncio.sleep(1)
             logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("jobs_to_apply_per_user")

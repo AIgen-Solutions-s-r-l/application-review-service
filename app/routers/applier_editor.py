@@ -165,58 +165,48 @@ async def modify_application_content(
         raise HTTPException(status_code=500, detail=f"Failed to modify application: {str(e)}")
 
 
-# This applies to everything of that user!
-# To use when the user selects to apply to all jobs (optimization)
-@router.post(
-    "/apply_all",
-    summary="Process career documents for the authenticated user",
-    description="Process the provided document containing job responses",
-    response_model=None,
-)
+@router.post("/apply_all")
 async def process_career_docs(
     current_user=Depends(get_current_user),
     mongo_client=Depends(get_mongo_client),
     rabbitmq: AsyncRabbitMQClient = Depends(get_rabbitmq_client)
 ):
-    """
-    Process career documents for the authenticated user.
-
-    Args:
-        current_user: The authenticated user's ID obtained from the JWT.
-        mongo_client: MongoDB client instance.
-        rabbitmq: RabbitMQ client instance.
-
-    Returns:
-        dict: Success message if the documents are processed.
-
-    Raises:
-        HTTPException: If any error occurs during processing.
-    """
     user_id = current_user
-    
     try:
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
-        # Fetch the single document for the user_id
+        # 1) Fetch the user's document
         document = await collection.find_one({"user_id": user_id}, {"_id": 0})
 
         if not document:
-            raise HTTPException(status_code=404, detail="No career documents found for the user.")
+            raise HTTPException(
+                status_code=404,
+                detail="No career documents found for the user."
+            )
 
-        # Send the entire document to the microservices
+        # 2) Send the entire document to the microservices
         await send_data_to_microservices(document, rabbitmq)
 
-        # Update the "sent" field to True for all content items
+        # 3) Update `sent` field to True in the Python object (for every application)
+        content = document.get("content", {})
+        for app_id in content.keys():
+            content[app_id]["sent"] = True
+        
+        # 4) Save the updated `content` back to Mongo
         await collection.update_one(
             {"user_id": user_id},
-            {"$set": {"content.$[].sent": True}}
+            {"$set": {"content": content}}
         )
-        
+
         return {"message": "Career documents processed successfully"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process career documents: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process career documents: {str(e)}"
+        )
+
 
 @router.post(
     "/apply_selected",
