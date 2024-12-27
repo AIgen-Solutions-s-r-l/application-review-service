@@ -12,8 +12,8 @@ curl -X POST "http://localhost:8005/apply_selected" \
     "c81da25a-e1de-4c48-8917-e1cb3a0515ea"
 ]'
 
-curl -X POST "http://localhost:8007/apply_all" \
--H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsb3JlbnpvIiwiaWQiOjgsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0OTg3NzIyfQ.5pm92LCEhfEv4sCgzm6GnbgzKeDxW7jJmGjpAfcGuPM" \
+curl -X POST "http://localhost:8008/apply_all" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsb3JlbnpvIiwiaWQiOjgsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM1MjY0NTY0fQ.HyAXwlKKOAT-8SCKQrpbyNjdXTNoV1lagXy3xBylJOY" \
 -H "Content-Type: application/json"
 
 curl -X PUT "http://localhost:8006/modify_application/41a1be8d-a1fc-4221-a3cd-1febcb3c7797" \

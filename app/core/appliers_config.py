@@ -2,25 +2,59 @@ def process_default(data):
     # Default processing function that returns data as-is
     return data
 
-def process_for_applier2(data):
-    # EXAMPLE:
-    # Custom processing for another applier
-    # Extract specific parts of the data or transform it
-    processed_data = {
-        'job_ids': list(data.keys()),
-        'jobs': [job_data['job_title'] for job_data in data.values()]
-    }
-    return processed_data
+def process_for_skyvern(data):
+    """
+    Processes data for skyvern.
+    Filters out applications with the portal field in the specified list,
+    while retaining the original structure with 'user_id' and 'content'.
+    """
+    user_id = data.get("user_id")
+    content = data.get("content", {})
 
-# Appliers configuration for modularity :D
+    if not isinstance(content, dict):
+        return {"user_id": user_id, "content": {}}
+
+    filtered_content = {
+        key: value
+        for key, value in content.items()
+        if isinstance(value, dict) and value.get('portal') not in ["workaday", "sium", "this_is_an_example"]
+    }
+
+    # Return the filtered data in the same structure
+    return {"user_id": user_id, "content": filtered_content}
+
+def process_for_providers(data):
+    """
+    Processes data for providers.
+    Filters applications with the portal field matching the specified list,
+    while retaining the original structure with 'user_id' and 'content'.
+    """
+    user_id = data.get("user_id")
+    content = data.get("content", {})
+
+    if not isinstance(content, dict):
+        return {"user_id": user_id, "content": {}}
+
+    filtered_content = {
+        key: value
+        for key, value in content.items()
+        if isinstance(value, dict) and value.get('portal') in ["workaday", "sium", "this_is_an_example"]
+    }
+
+    # Return the filtered data in the same structure
+    return {"user_id": user_id, "content": filtered_content}
+
+
+
+# Appliers configuration for modularity
 APPLIERS = {
     'skyvern': {
         'queue_name': 'skyvern_queue',
-        'process_function': process_default
+        'process_function': process_for_skyvern
     },
-    #'applier2': {
-    #    'queue_name': 'other_applier_queue',
-    #    'process_function': process_for_applier2
-    #},
-    # Add more appliers as needed, letsgo!
+    'providers': {
+        'queue_name': 'providers_queue',
+        'process_function': process_for_providers
+    },
+    # Add more appliers as needed
 }
