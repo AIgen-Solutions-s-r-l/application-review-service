@@ -95,7 +95,10 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
     """
     while True:
         try:
+            # TODO: Implement priority of users here, maybe based on pricing plan (?)
             # TODO: Implement rate-limiting logic here
+            # TODO: Decomment deletion of job to apply lists
+            # TODO: Implement a recovery process (thanks to redis) in case of failures in career_docs
             await asyncio.sleep(10)
             logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
@@ -129,6 +132,19 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                     continue
 
                 await notify_career_docs(user_id, jobs_field, rabbitmq_client, settings)
+
+                # Clear the "jobs" field after successfully notifying career docs
+                # TODO: see above! 
+                '''
+                    result = await collection.update_one(
+                        {"user_id": user_id},
+                        {"$set": {"jobs": []}}
+                    )
+                    if result.modified_count > 0:
+                        logger.info(f"Cleared 'jobs' field for user_id {user_id}.")
+                    else:
+                        logger.warning(f"Failed to clear 'jobs' field for user_id {user_id}.")
+                '''
 
             # TODO: wait for frontend for actual rate-limiting logic
             logger.info("All jobs have been processed. Sleeping before the next iteration.")
