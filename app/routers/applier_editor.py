@@ -49,9 +49,10 @@ async def get_career_docs(
 
         # Remove 'resume_optimized' and 'cover_letter' dynamically from the content
         content = document.get("content", {})
-        for app_id in content.keys():
-            content[app_id].pop("resume_optimized", None)
-            content[app_id].pop("cover_letter", None)
+        for app_id, app_data in content.items():
+            if isinstance(app_data, dict):  # Ensure the app_data is a dictionary
+                app_data.pop("resume_optimized", None)
+                app_data.pop("cover_letter", None)
 
         return content
 
