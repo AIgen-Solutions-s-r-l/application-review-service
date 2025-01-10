@@ -16,10 +16,9 @@ curl -X POST "http://localhost:8008/apply_all" \
 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsb3JlbnpvIiwiaWQiOjgsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM1MjY0NTY0fQ.HyAXwlKKOAT-8SCKQrpbyNjdXTNoV1lagXy3xBylJOY" \
 -H "Content-Type: application/json"
 
-curl -X PUT "http://localhost:8006/modify_application/41a1be8d-a1fc-4221-a3cd-1febcb3c7797" \
--H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0Mjg5NDA5fQ.ft-FwjleJp6VZzyd3DJjJ5ynP-z6OCENgORA7uXwzjo" \
+curl -X PUT "http://localhost:8008/modify_application/428f9a8a-92f9-4335-b209-de3db0156ac2" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTEwNTgxfQ.tkUeEDCbqGfDNJPV5CJ031Y4MHvi4E1gTNiPAItYd1Y" \
 -H "Content-Type: application/json" \
 -d '{
-    "job_title": "SIUM Engineer",
-    "description": "Updated job description"
+    "country": "BBBBBBB"
 }'

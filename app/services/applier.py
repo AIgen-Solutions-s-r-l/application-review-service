@@ -17,6 +17,14 @@ redis_client_jobs.connect()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+def ensure_dict(data):
+    if isinstance(data, str):
+        try:
+            return json.loads(data)  # Convert to dict if it's a JSON string
+        except json.JSONDecodeError:
+            pass  # Leave as string if it isn't valid JSON
+    return data
+
 def generate_unique_uuid():
     """
     Generates a unique UUID that is not already present in the provided mapping.
@@ -61,10 +69,13 @@ async def notify_career_docs(user_id: str, jobs: list, rabbitmq_client: AsyncRab
         job["correlation_id"] = correlation_id
 
         try:
-            # Serialize the dictionary to a JSON string and store in Redis
-            redis_value = json.dumps({"job_id": job.get("job_id"), "title": job.get("title"), "description": job.get("description"), "portal": job.get("portal")})
-            # Store the correlation ID in Redis (DB 0)
-            success = redis_client_jobs.set(correlation_id, redis_value)
+            redis_value = {
+                "job_id": job.get("job_id"),
+                "title": job.get("title"),
+                "description": job.get("description"),
+                "portal": job.get("portal"),
+            }
+            success = redis_client_jobs.set(correlation_id, json.dumps(redis_value))
             if not success:
                 logger.error(f"Failed to store correlation ID '{correlation_id}' in mapping")
                 raise JobApplicationError("Failed to store correlation ID in mapping")
@@ -117,9 +128,9 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                     continue
 
                 try:
-                    # Parse each JSON string in the list
                     if isinstance(jobs_field, list):
-                        jobs_field = [json.loads(job) if isinstance(job, str) else job for job in jobs_field]
+                        # Parse each JSON string in the list
+                        jobs_field = [ensure_dict(job) for job in jobs_field]
                     else:
                         logger.warning("'jobs' field is not a list, skipping document.")
                         continue
@@ -165,7 +176,6 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
     async def on_message(message: IncomingMessage):
         body = message.body.decode()
         data = json.loads(body)
-        logger.info(f"Received response from career_docs 1: {data}")
 
         # Extract user_id field
         user_id = data.get("user_id")
@@ -182,7 +192,9 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
                 original_data_json = redis_client_jobs.get(correlation_id)
                 if original_data_json:
                     # Deserialize the JSON string back into a dictionary
-                    original_data = json.loads(original_data_json)
+                    original_data = ensure_dict(original_data_json)
+                    job_data = ensure_dict(job_data)
+
                     # Update the value (job_data) with the job_id, title, description, portal of that job
                     job_data.update(original_data)
 
@@ -205,9 +217,7 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
             update_query = {"$setOnInsert": {"user_id": user_id}}
 
             # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
-            content_mod = {key: {**value, "sent": False} for key, value in content.items()}
-
-            logger.info(f"Received response from career_docs 2: {content_mod}")
+            content_mod = {key: {**ensure_dict(value), "sent": False} for key, value in content.items()}
 
             # Merge each entry from the incoming content into the existing content
             for key, value in content_mod.items():
