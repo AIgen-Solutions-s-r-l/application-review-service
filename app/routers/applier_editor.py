@@ -216,8 +216,23 @@ async def process_selected_applications(
     mongo_client=Depends(get_mongo_client),
     rabbitmq: AsyncRabbitMQClient = Depends(get_rabbitmq_client)
 ):
-    user_id = current_user
+    """
+    Process selected applications for the authenticated user.
 
+    Args:
+        application_ids: List of application IDs to process.
+        current_user: The authenticated user's ID obtained from the JWT.
+        mongo_client: MongoDB client instance.
+        rabbitmq: RabbitMQ client instance.
+
+    Returns:
+        dict: Success message if the specified applications are processed.
+
+    Raises:
+        HTTPException: If any error occurs during processing or if IDs are not found.
+    """
+    user_id = current_user  # Assuming `get_current_user` directly returns the user_id
+    
     try:
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
@@ -225,27 +240,21 @@ async def process_selected_applications(
         # Fetch the user's document containing all their applications
         document = await collection.find_one({"user_id": user_id}, {"_id": 0})
 
-        if not document:
-            raise HTTPException(
-                status_code=404,
-                detail="No career documents found for the user."
-            )
+        if not document or "content" not in document:
+            raise HTTPException(status_code=404, detail="No career documents found for the user.")
 
-        # Filter the content to include only selected applications
-        filtered_content = {
-            app_id: document.get(app_id)
-            for app_id in application_ids
-            if app_id in document
-        }
+        # Extract and filter the `content` field to include only the selected application IDs
+        content = document["content"]
+        filtered_content = {app_id: content[app_id] for app_id in application_ids if app_id in content}
 
         if not filtered_content:
-            raise HTTPException(
-                status_code=404,
-                detail="None of the specified application IDs were found."
-            )
+            raise HTTPException(status_code=404, detail="None of the specified application IDs were found.")
 
         # Create the filtered document to send
-        filtered_document = {"user_id": user_id, **filtered_content}
+        filtered_document = {
+            "user_id": user_id,
+            "content": filtered_content
+        }
 
         # Send the filtered document to RabbitMQ
         await send_data_to_microservices(filtered_document, rabbitmq)
@@ -253,14 +262,11 @@ async def process_selected_applications(
         # Update the "sent" field to True for the selected application IDs
         for app_id in application_ids:
             await collection.update_one(
-                {"user_id": user_id, f"{app_id}.sent": {"$exists": True}},
-                {"$set": {f"{app_id}.sent": True}}
+                {"user_id": user_id, f"content.{app_id}": {"$exists": True}},
+                {"$set": {f"content.{app_id}.sent": True}}
             )
 
         return {"message": "Selected applications processed successfully"}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process selected applications: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to process selected applications: {str(e)}")
