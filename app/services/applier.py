@@ -117,7 +117,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
             # TODO: Implement rate-limiting logic here
             # TODO: Decomment deletion of job to apply lists
             # TODO: Implement a recovery process (thanks to redis) in case of failures in career_docs
-            await asyncio.sleep(1000)
+            await asyncio.sleep(1)
             logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("jobs_to_apply_per_user")
@@ -275,8 +275,6 @@ async def send_data_to_microservices(data, rabbitmq_client: AsyncRabbitMQClient)
         process_function = microservice_info.get('process_function', process_default)
 
         microservice_data = process_function(data)
-        logger.info("----------------------------------")
         logger.info(microservice_data)
         await rabbitmq_client.publish_message(queue_name=queue_name, message=microservice_data)
         logger.info(f"Sent data to microservice '{microservice_name}' via queue '{queue_name}'")
-        logger.info("----------------------------------")
