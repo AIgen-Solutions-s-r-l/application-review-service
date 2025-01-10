@@ -190,15 +190,21 @@ The Frontend allows the user to modify individual fields of the application. Onc
   - **Endpoint**: `PUT /modify_application/{application_id}`
   - **Description**: Update specific fields of an application.
 
-  ```bash
-  curl -X PUT "http://localhost:8006/modify_application/{application_id}" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-      "job_title": "Updated Job Title",
-      "description": "Updated job description"
-  }'
-  ```
+```bash
+curl -X PUT "http://localhost:8008/modify_application/{application_id}" \
+-H "Authorization: Bearer <YOUR TOKEN>" \
+-H "Content-Type: application/json" \
+-d '{
+    "resume_optimized.resume.header.personal_information.country": "Germany",
+    "resume_optimized.resume.body.side_projects": [
+        {
+            "name": "Open Source Project",
+            "description": "Developed features for an open project improving its performance and documentation.",
+            "technologies": ["Python", "Flask"]
+        }
+    ]
+}'
+```
 
 ---
 

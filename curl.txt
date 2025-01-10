@@ -21,9 +21,9 @@ curl -X PUT "http://localhost:8008/modify_application/3c916dfc-d0d7-4f8e-b3b0-33
 -H "Content-Type: application/json" \
 -d '{
     "resume_optimized.resume.header.personal_information.country": "Germany",
-    "resume_optimized.body.side_projects": [
+    "resume_optimized.resume.body.side_projects": [
         {
-            "name": "Open Source",
+            "name": "",
             "description": "Developed features for an open project improving its performance and documentation.",
             "technologies": ["Python", "Flask"]
         }
