@@ -4,7 +4,7 @@ from typing import Any, List, Dict
 from app.core.rabbitmq_client import rabbit_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
-from app.services.applier import send_data_to_microservices
+from app.services.applier import send_data_to_microservices, ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 
 router = APIRouter()
@@ -15,22 +15,22 @@ def get_rabbitmq_client() -> AsyncRabbitMQClient:
 @router.get(
     "/apply_content",
     summary="Retrieve career documents for the authenticated user",
-    description="Fetch all career document responses associated with the user_id in the JWT",
-    response_model=dict,  # Adjust response model to match the single document structure if needed
+    description="Fetch all career document responses associated with the user_id in the JWT, excluding resume_optimized and cover_letter",
+    response_model=dict,
 )
 async def get_career_docs(
     current_user=Depends(get_current_user),
-    mongo_client=Depends(get_mongo_client)
+    mongo_client=Depends(get_mongo_client),
 ):
     """
-    Retrieve career document responses for the authenticated user, excluding certain fields.
+    Retrieve career document responses for the authenticated user, excluding all 'resume_optimized' and 'cover_letter' fields.
 
     Args:
         current_user: The authenticated user's ID obtained from the JWT.
         mongo_client: MongoDB client instance.
 
     Returns:
-        dict: A dictionary containing the 'content' field with certain fields excluded.
+        dict: A dictionary containing the 'content' field with 'resume_optimized' and 'cover_letter' fields removed.
 
     Raises:
         HTTPException: If no document is found or a database error occurs.
@@ -41,20 +41,17 @@ async def get_career_docs(
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
-        # Fetch the single document for the user_id with only the `content` field
+        # Fetch the entire 'content' field for the user
         document = await collection.find_one({"user_id": user_id}, {"_id": 0, "content": 1})
 
         if not document:
             raise HTTPException(status_code=404, detail="No career documents found for the user.")
 
+        # Remove 'resume_optimized' and 'cover_letter' dynamically from the content
         content = document.get("content", {})
-
-        # Exclude `resume_optimized` and `cover_letter` from each entry
-        for key in list(content.keys()):
-            if "resume_optimized" in content[key]:
-                del content[key]["resume_optimized"]
-            if "cover_letter" in content[key]:
-                del content[key]["cover_letter"]
+        for app_id in content.keys():
+            content[app_id].pop("resume_optimized", None)
+            content[app_id].pop("cover_letter", None)
 
         return content
 
@@ -149,6 +146,9 @@ async def modify_application_content(
         if not existing_document:
             raise HTTPException(status_code=404, detail=f"Application ID '{application_id}' not found.")
 
+        for field, value in updates.items():
+            updates[field] = ensure_dict(value)
+
         # Perform the update
         update_query = {f"content.{application_id}.{field}": value for field, value in updates.items()}
         result = await collection.update_one(
@@ -176,7 +176,7 @@ async def process_career_docs(
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
-        # 1) Fetch the user's document
+        # Fetch the user's document
         document = await collection.find_one({"user_id": user_id}, {"_id": 0})
 
         if not document:
@@ -185,19 +185,16 @@ async def process_career_docs(
                 detail="No career documents found for the user."
             )
 
-        # 2) Send the entire document to the microservices
+        # Send the entire document to the microservices
         await send_data_to_microservices(document, rabbitmq)
 
-        # 3) Update `sent` field to True in the Python object (for every application)
-        content = document.get("content", {})
-        for app_id in content.keys():
-            content[app_id]["sent"] = True
-        
-        # 4) Save the updated `content` back to Mongo
-        await collection.update_one(
-            {"user_id": user_id},
-            {"$set": {"content": content}}
-        )
+        # Update `sent` field to True for all applications
+        for app_id in document.keys():
+            if app_id != "user_id":  # Skip user_id
+                await collection.update_one(
+                    {"user_id": user_id},
+                    {"$set": {f"{app_id}.sent": True}}
+                )
 
         return {"message": "Career documents processed successfully"}
 
@@ -206,7 +203,6 @@ async def process_career_docs(
             status_code=500,
             detail=f"Failed to process career documents: {str(e)}"
         )
-
 
 @router.post(
     "/apply_selected",

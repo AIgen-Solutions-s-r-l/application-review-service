@@ -17,6 +17,21 @@ redis_client_jobs.connect()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+def ensure_dict(data):
+    while isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            break
+
+    if isinstance(data, dict):
+        return {k: ensure_dict(v) for k, v in data.items()}
+
+    if isinstance(data, list):
+        return [ensure_dict(item) for item in data]
+
+    return data
+
 def generate_unique_uuid():
     """
     Generates a unique UUID that is not already present in the provided mapping.
@@ -61,10 +76,13 @@ async def notify_career_docs(user_id: str, jobs: list, rabbitmq_client: AsyncRab
         job["correlation_id"] = correlation_id
 
         try:
-            # Serialize the dictionary to a JSON string and store in Redis
-            redis_value = json.dumps({"job_id": job.get("job_id"), "title": job.get("title"), "description": job.get("description"), "portal": job.get("portal")})
-            # Store the correlation ID in Redis (DB 0)
-            success = redis_client_jobs.set(correlation_id, redis_value)
+            redis_value = {
+                "job_id": job.get("job_id"),
+                "title": job.get("title"),
+                "description": job.get("description"),
+                "portal": job.get("portal"),
+            }
+            success = redis_client_jobs.set(correlation_id, json.dumps(redis_value))
             if not success:
                 logger.error(f"Failed to store correlation ID '{correlation_id}' in mapping")
                 raise JobApplicationError("Failed to store correlation ID in mapping")
@@ -99,7 +117,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
             # TODO: Implement rate-limiting logic here
             # TODO: Decomment deletion of job to apply lists
             # TODO: Implement a recovery process (thanks to redis) in case of failures in career_docs
-            await asyncio.sleep(10)
+            await asyncio.sleep(1000)
             logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("jobs_to_apply_per_user")
@@ -117,9 +135,9 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
                     continue
 
                 try:
-                    # Parse each JSON string in the list
                     if isinstance(jobs_field, list):
-                        jobs_field = [json.loads(job) if isinstance(job, str) else job for job in jobs_field]
+                        # Parse each JSON string in the list
+                        jobs_field = [ensure_dict(job) for job in jobs_field]
                     else:
                         logger.warning("'jobs' field is not a list, skipping document.")
                         continue
@@ -165,7 +183,6 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
     async def on_message(message: IncomingMessage):
         body = message.body.decode()
         data = json.loads(body)
-        logger.info(f"Received response from career_docs 1: {data}")
 
         # Extract user_id field
         user_id = data.get("user_id")
@@ -182,7 +199,9 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
                 original_data_json = redis_client_jobs.get(correlation_id)
                 if original_data_json:
                     # Deserialize the JSON string back into a dictionary
-                    original_data = json.loads(original_data_json)
+                    original_data = ensure_dict(original_data_json)
+                    job_data = ensure_dict(job_data)
+
                     # Update the value (job_data) with the job_id, title, description, portal of that job
                     job_data.update(original_data)
 
@@ -204,13 +223,21 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
             filter_query = {"user_id": user_id}
             update_query = {"$setOnInsert": {"user_id": user_id}}
 
-            # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
-            content_mod = {key: {**value, "sent": False} for key, value in content.items()}
-
-            logger.info(f"Received response from career_docs 2: {content_mod}")
+            content_mod = {
+                key: {
+                    **ensure_dict(value),
+                    "resume_optimized": ensure_dict(value.get("resume_optimized", {})),
+                    "cover_letter": ensure_dict(value.get("cover_letter", {})),
+                    "sent": False
+                }
+                for key, value in content.items()
+            }
 
             # Merge each entry from the incoming content into the existing content
             for key, value in content_mod.items():
+                if isinstance(value, str):
+                    # If a nested field is still a string, ensure it's a dictionary
+                    content_mod[key] = ensure_dict(value)
                 update_query.setdefault("$set", {})[f"content.{key}"] = value
 
             # Use upsert to insert a new document if it doesn't exist, or update the existing one
