@@ -1,9 +1,9 @@
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "lorenzo", "password": "12345678"}'
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "johndoe", "password": "securepassword"}'
 
-curl -X GET "http://localhost:8006/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0Mjg0NTE2fQ.YhEExHFhYUxrImtgjoqfPLO2MEKB15VSXdOiVEOjZlU"
+curl -X GET "http://localhost:8008/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTIwMzk2fQ._whLR_h4GL1O_KbplCLd-56uTDZcH8cH5Qf36BFwsoM"
 
-curl -X GET "http://localhost:8006/apply_content/41a1be8d-a1fc-4221-a3cd-1febcb3c7797" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0Mjg0NTE2fQ.YhEExHFhYUxrImtgjoqfPLO2MEKB15VSXdOiVEOjZlU"
+curl -X GET "http://localhost:8008/apply_content/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTIwMzk2fQ._whLR_h4GL1O_KbplCLd-56uTDZcH8cH5Qf36BFwsoM"
 
 curl -X POST "http://localhost:8005/apply_selected" \
 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsb3JlbnpvIiwiaWQiOjgsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM0OTgzMDIyfQ.jsc8gS3JiijQt6TdmSVBA2RV2WJKJmhPSWnnmWTc7mU" \
@@ -16,9 +16,23 @@ curl -X POST "http://localhost:8008/apply_all" \
 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJsb3JlbnpvIiwiaWQiOjgsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM1MjY0NTY0fQ.HyAXwlKKOAT-8SCKQrpbyNjdXTNoV1lagXy3xBylJOY" \
 -H "Content-Type: application/json"
 
-curl -X PUT "http://localhost:8008/modify_application/428f9a8a-92f9-4335-b209-de3db0156ac2" \
--H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTEwNTgxfQ.tkUeEDCbqGfDNJPV5CJ031Y4MHvi4E1gTNiPAItYd1Y" \
+curl -X PUT "http://localhost:8008/modify_application/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTE2NzIwfQ.zIzxJSbDuRltQ8rf7NUVucA3c4C6o70OKXIokPdsdj4" \
 -H "Content-Type: application/json" \
 -d '{
-    "country": "BBBBBBB"
+    "resume_optimized.resume.header.personal_information.country": "France"
+}'
+
+curl -X PUT "http://localhost:8008/modify_application/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTIwMzk2fQ._whLR_h4GL1O_KbplCLd-56uTDZcH8cH5Qf36BFwsoM" \
+-H "Content-Type: application/json" \
+-d '{
+    "resume_optimized.resume.header.personal_information.country": "Germany",
+    "resume_optimized.body.side_projects": [
+        {
+            "name": "Open Source",
+            "description": "Developed features for an open project improving its performance and documentation.",
+            "technologies": ["Python", "Flask"]
+        }
+    ]
 }'

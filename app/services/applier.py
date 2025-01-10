@@ -18,11 +18,18 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def ensure_dict(data):
-    if isinstance(data, str):
+    while isinstance(data, str):
         try:
-            return json.loads(data)  # Convert to dict if it's a JSON string
-        except json.JSONDecodeError:
-            pass  # Leave as string if it isn't valid JSON
+            data = json.loads(data)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            break
+
+    if isinstance(data, dict):
+        return {k: ensure_dict(v) for k, v in data.items()}
+
+    if isinstance(data, list):
+        return [ensure_dict(item) for item in data]
+
     return data
 
 def generate_unique_uuid():
@@ -110,7 +117,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
             # TODO: Implement rate-limiting logic here
             # TODO: Decomment deletion of job to apply lists
             # TODO: Implement a recovery process (thanks to redis) in case of failures in career_docs
-            await asyncio.sleep(10)
+            await asyncio.sleep(1000)
             logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("jobs_to_apply_per_user")
@@ -216,11 +223,21 @@ async def consume_career_docs_responses(mongo_client: AsyncIOMotorClient, rabbit
             filter_query = {"user_id": user_id}
             update_query = {"$setOnInsert": {"user_id": user_id}}
 
-            # Add a "sent" field to each job data entry (to track if it has been sent to the applier)
-            content_mod = {key: {**ensure_dict(value), "sent": False} for key, value in content.items()}
+            content_mod = {
+                key: {
+                    **ensure_dict(value),
+                    "resume_optimized": ensure_dict(value.get("resume_optimized", {})),
+                    "cover_letter": ensure_dict(value.get("cover_letter", {})),
+                    "sent": False
+                }
+                for key, value in content.items()
+            }
 
             # Merge each entry from the incoming content into the existing content
             for key, value in content_mod.items():
+                if isinstance(value, str):
+                    # If a nested field is still a string, ensure it's a dictionary
+                    content_mod[key] = ensure_dict(value)
                 update_query.setdefault("$set", {})[f"content.{key}"] = value
 
             # Use upsert to insert a new document if it doesn't exist, or update the existing one
