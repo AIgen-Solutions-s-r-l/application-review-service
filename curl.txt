@@ -29,3 +29,177 @@ curl -X PUT "http://localhost:8008/modify_application/3c916dfc-d0d7-4f8e-b3b0-33
         }
     ]
 }'
+
+curl -X PUT "http://localhost:8010/update_application/resume_optimized/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" \
+     -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2Njg4NDc5fQ.2ytP1Pnuw3fzepG5xBqES4Y_7d0YmsHtbReKiUpGHPQ" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "resume": {
+         "header": {
+           "personal_information": {
+             "name": "Marco",
+             "surname": "Rossi",
+             "date_of_birth": "15/08/1995",
+             "country": "Germany",
+             "city": "Berlin",
+             "address": "Corso Buenos Aires 12",
+             "phone_prefix": "+39",
+             "phone": 3401234567,
+             "email": "marco.rossi@example.com",
+             "github": "https://github.com/marco-rossi/ProjectExample",
+             "linkedin": "https://www.linkedin.com/in/marco-rossi"
+           }
+         },
+         "body": {
+           "education_details": {
+             "education_details": [
+               {
+                 "education_level": "Masters Degree",
+                 "institution": "Politecnico di Milano",
+                 "field_of_study": "Software Engineering",
+                 "final_evaluation_grade": "3.8/4",
+                 "start_date": 2018,
+                 "year_of_completion": 2024,
+                 "exam": {
+                   "Data Structures": 3.9,
+                   "Web Technologies": 3.8,
+                   "Mobile Development": 4,
+                   "Database Management": 3.7,
+                   "Machine Learning": 4,
+                   "Cloud Computing": 3.8
+                 }
+               }
+             ]
+           },
+           "experience_details": {
+             "experience_details": [
+               {
+                 "position": "Software Engineer",
+                 "company": "Tech Innovations",
+                 "employment_period": "06/2020 - Present",
+                 "location": "Italy",
+                 "industry": "Technology",
+                 "key_responsibilities": [
+                   "Developed scalable web applications using modern frameworks",
+                   "Collaborated with cross-functional teams to define project requirements",
+                   "Implemented RESTful APIs for mobile and web applications",
+                   "Conducted code reviews and mentored junior developers",
+                   "Participated in Agile ceremonies and continuous improvement initiatives"
+                 ],
+                 "skills_acquired": [
+                   "JavaScript",
+                   "React",
+                   "Node.js",
+                   "Agile Methodologies",
+                   "REST APIs",
+                   "Cloud Services",
+                   "DevOps Practices",
+                   "Database Management",
+                   "Team Collaboration",
+                   "Technical Documentation"
+                 ]
+               }
+             ]
+           },
+           "side_projects": [
+             {
+               "name": "Open Source",
+               "description": "Developed features for an open project improving its performance and documentation.",
+               "technologies": [
+                 "Python",
+                 "Flask"
+               ]
+             }
+           ],
+           "achievements": {
+             "achievements": [
+               {
+                 "name": "Top Performer",
+                 "description": "Recognized as a top performer in the software engineering team for three consecutive quarters, showcasing exceptional performance and contribution to team objectives."
+               },
+               {
+                 "name": "Hackathon Winner",
+                 "description": "Won first place in a regional hackathon for developing an innovative mobile app, demonstrating creativity and technical skills in a competitive environment."
+               },
+               {
+                 "name": "Publication",
+                 "description": "Published an article on Medium about best practices in web development, contributing to the professional community and sharing knowledge on effective development strategies."
+               }
+             ]
+           },
+           "certifications": {
+             "certifications": [
+               {
+                 "name": "AWS Certified Solutions Architect",
+                 "description": "Certification demonstrating proficiency in designing distributed applications and systems on AWS"
+               }
+             ]
+           },
+           "additional_skills": {
+             "additional_skills": [
+               "Artificial Intelligence",
+               "Blockchain Technology",
+               "Open Source Development",
+               "Cybersecurity",
+               "Game Development",
+               "Robotics",
+               "Virtual Reality",
+               "React",
+               "Node.js",
+               "JavaScript",
+               "Cloud Services",
+               "DevOps Practices",
+               "Technical Documentation",
+               "Agile Methodologies",
+               "Team Collaboration",
+               "Database Management",
+               "REST APIs"
+             ],
+             "languages": [
+               {
+                 "language": "Italian",
+                 "proficiency": "Native"
+               },
+               {
+                 "language": "English",
+                 "proficiency": "Fluent"
+               },
+               {
+                 "language": "Spanish",
+                 "proficiency": "Intermediate"
+               }
+             ]
+           }
+         }
+       }
+     }'
+
+curl -X PUT "http://localhost:8010/update_application/cover_letter/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" \
+     -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2Njg4NDc5fQ.2ytP1Pnuw3fzepG5xBqES4Y_7d0YmsHtbReKiUpGHPQ" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "cover_letter": {
+         "header": {
+           "applicant_details": {
+             "name": "Marco Rossi",
+             "address": "Corso Buenos Aires 12",
+             "city_state_zip": "Milan, Italy",
+             "email": "marco.rossiiiiiii@example.com",
+             "phone_number": "+39 3401234567"
+           },
+           "company_details": {
+             "name": "[Company Name]"
+           }
+         },
+         "body": {
+           "greeting": "Dear [Recipient Team]",
+           "opening_paragraph": "I am excited to apply for the role...",
+           "closing_paragraph": "Thank you for your consideration."
+         },
+         "footer": {
+           "closing": "Sincerely",
+           "signature": "Marco Rossi",
+           "date": "[Date]"
+         }
+       }
+     }'

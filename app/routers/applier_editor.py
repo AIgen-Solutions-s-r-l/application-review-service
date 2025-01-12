@@ -165,6 +165,122 @@ async def modify_application_content(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to modify application: {str(e)}")
 
+@router.put(
+    "/update_application/resume_optimized/{application_id}",
+    summary="Replace the entire 'resume_optimized' data for an application",
+    description="Overwrite the 'resume_optimized' JSON portion for a specific application with the given JSON object",
+    response_model=dict,
+)
+async def replace_resume_optimized(
+    application_id: str,
+    new_resume_optimized: Dict[str, Any],
+    current_user=Depends(get_current_user),
+    mongo_client=Depends(get_mongo_client),
+):
+    """
+    Replace the entire 'resume_optimized' section for a specific application.
+
+    Args:
+        application_id (str): The unique ID of the application to update.
+        new_resume_optimized (Dict[str, Any]): The new 'resume_optimized' object that will overwrite the existing one.
+        current_user: The authenticated user ID obtained from get_current_user.
+        mongo_client: MongoDB client instance.
+
+    Returns:
+        dict: A message confirming the operation’s success.
+
+    Raises:
+        HTTPException: If the application doesn't exist or an error occurs during the update.
+    """
+    user_id = current_user  # If get_current_user returns the user_id directly
+    try:
+        db = mongo_client.get_database("resumes")
+        collection = db.get_collection("career_docs_responses")
+
+        # Check if this application exists for this user
+        existing_document = await collection.find_one(
+            {"user_id": user_id, f"content.{application_id}.resume_optimized": {"$exists": True}},
+            {"_id": 0, f"content.{application_id}.resume_optimized": 1}
+        )
+
+        if not existing_document:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Application ID '{application_id}' not found or missing 'resume_optimized' section."
+            )
+
+        # Replace the entire 'resume_optimized' content
+        result = await collection.update_one(
+            {"user_id": user_id},
+            {"$set": {f"content.{application_id}.resume_optimized": new_resume_optimized}}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail=f"Failed to update 'resume_optimized' for application '{application_id}'.")
+
+        return {"message": f"'resume_optimized' for application ID '{application_id}' replaced successfully."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put(
+    "/update_application/cover_letter/{application_id}",
+    summary="Replace the entire 'cover_letter' data for an application",
+    description="Overwrite the 'cover_letter' JSON portion for a specific application with the given JSON object",
+    response_model=dict,
+)
+async def replace_cover_letter(
+    application_id: str,
+    new_cover_letter: Dict[str, Any],
+    current_user=Depends(get_current_user),
+    mongo_client=Depends(get_mongo_client),
+):
+    """
+    Replace the entire 'cover_letter' section for a specific application.
+
+    Args:
+        application_id (str): The unique ID of the application to update.
+        new_cover_letter (Dict[str, Any]): The new 'cover_letter' object that will overwrite the existing one.
+        current_user: The authenticated user ID obtained from get_current_user.
+        mongo_client: MongoDB client instance.
+
+    Returns:
+        dict: A message confirming the operation’s success.
+
+    Raises:
+        HTTPException: If the application doesn't exist or an error occurs during the update.
+    """
+    user_id = current_user
+    try:
+        db = mongo_client.get_database("resumes")
+        collection = db.get_collection("career_docs_responses")
+
+        # Check if this application exists for this user
+        existing_document = await collection.find_one(
+            {"user_id": user_id, f"content.{application_id}.cover_letter": {"$exists": True}},
+            {"_id": 0, f"content.{application_id}.cover_letter": 1}
+        )
+
+        if not existing_document:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Application ID '{application_id}' not found or missing 'cover_letter' section."
+            )
+
+        # Replace the entire 'cover_letter' content
+        result = await collection.update_one(
+            {"user_id": user_id},
+            {"$set": {f"content.{application_id}.cover_letter": new_cover_letter}}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail=f"Failed to update 'cover_letter' for application '{application_id}'.")
+
+        return {"message": f"'cover_letter' for application ID '{application_id}' replaced successfully."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/apply_all")
 async def process_career_docs(
