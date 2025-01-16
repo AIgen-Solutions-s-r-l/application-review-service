@@ -117,7 +117,7 @@ async def consume_jobs(mongo_client: AsyncIOMotorClient, rabbitmq_client: AsyncR
             # TODO: Implement rate-limiting logic here
             # TODO: Decomment deletion of job to apply lists
             # TODO: Implement a recovery process (thanks to redis) in case of failures in career_docs
-            await asyncio.sleep(1)
+            await asyncio.sleep(1000)
             logger.info("Connecting to MongoDB for fetching...")
             db = mongo_client.get_database("resumes")
             collection = db.get_collection("jobs_to_apply_per_user")

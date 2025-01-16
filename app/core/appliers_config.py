@@ -17,7 +17,7 @@ def process_for_skyvern(data):
     filtered_content = {
         key: value
         for key, value in content.items()
-        if isinstance(value, dict) and value.get('portal') not in ["workaday", "sium", "this_is_an_example"]
+        if isinstance(value, dict) and value.get('portal') not in ["workday", "greenhouse", "smartrecruiters", "dice", "apptojob"]
     }
 
     # Return the filtered data in the same structure
@@ -38,7 +38,7 @@ def process_for_providers(data):
     filtered_content = {
         key: value
         for key, value in content.items()
-        if isinstance(value, dict) and value.get('portal') in ["workaday", "sium", "this_is_an_example"]
+        if isinstance(value, dict) and value.get('portal') in ["workday", "greenhouse", "smartrecruiters", "dice", "apptojob"]
     }
 
     # Return the filtered data in the same structure
