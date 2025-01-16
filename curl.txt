@@ -9,7 +9,7 @@ curl -X POST "http://localhost:8010/apply_selected" \
 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MDYxMjE1fQ.4SdOYPXFm-hYpZjguLbHS4sHbcO3Ab1KpRxN_XRXzps" \
 -H "Content-Type: application/json" \
 -d '[
-    "3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00"
+    "d608ed14-d759-4f3d-90f0-c7f72501cfed"
 ]'
 
 curl -X POST "http://localhost:8009/apply_all" \
