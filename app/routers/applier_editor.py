@@ -64,7 +64,7 @@ async def get_career_docs(
     "/apply_content/{application_id}",
     summary="Retrieve specific application data for the authenticated user",
     description="Fetch the specific career document response associated with the given application ID.",
-    response_model=dict,  # Adjust response model to your schema if needed
+    response_model=JobApplicationRequest,  # Adjust response model to your schema if needed
 )
 async def get_application_data(
     application_id: str,
