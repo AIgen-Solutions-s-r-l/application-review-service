@@ -6,6 +6,7 @@ from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
 from app.services.applier import send_data_to_microservices, ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
+from app.schemas.app_jobs import JobApplicationRequest
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ def get_rabbitmq_client() -> AsyncRabbitMQClient:
     "/apply_content",
     summary="Retrieve career documents for the authenticated user",
     description="Fetch all career document responses associated with the user_id in the JWT, excluding resume_optimized and cover_letter",
-    response_model=dict,
+    response_model=JobApplicationRequest,
 )
 async def get_career_docs(
     current_user=Depends(get_current_user),
