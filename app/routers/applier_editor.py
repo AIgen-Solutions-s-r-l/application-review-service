@@ -4,6 +4,7 @@ from typing import Any, List, Dict
 from app.core.rabbitmq_client import rabbit_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
+from app.models.job import JobData
 from app.services.applier import send_data_to_microservices, ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.schemas.app_jobs import JobApplicationRequest
@@ -50,12 +51,16 @@ async def get_career_docs(
 
         # Remove 'resume_optimized' and 'cover_letter' dynamically from the content
         content = document.get("content", {})
-        for app_id, app_data in content.items():
-            if isinstance(app_data, dict):  # Ensure the app_data is a dictionary
+        jobs = []
+
+        for app_data in content.values():
+            if isinstance(app_data, dict):
                 app_data.pop("resume_optimized", None)
                 app_data.pop("cover_letter", None)
+                # Directly unpack the dictionary into JobData
+                jobs.append(JobData(**app_data))
 
-        return content
+        return JobApplicationRequest(jobs=jobs)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
