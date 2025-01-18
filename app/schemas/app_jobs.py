@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from app.models.job import JobData
@@ -12,5 +12,5 @@ class JobApplicationRequest(BaseModel):
     )
 
 class DetailedJobData(BaseModel):
-    resume_optimized: Optional[str] = None
-    cover_letter: Optional[str] = None
+    resume_optimized: Optional[Dict[str, Any]] = None
+    cover_letter: Optional[Dict[str, Any]] = None
