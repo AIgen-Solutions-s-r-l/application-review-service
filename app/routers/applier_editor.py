@@ -69,7 +69,7 @@ async def get_career_docs(
     "/apply_content/{application_id}",
     summary="Retrieve specific application data for the authenticated user",
     description="Fetch the specific career document response associated with the given application ID.",
-    response_model=JobApplicationRequest,  # Adjust response model to your schema if needed
+    response_model=JobData,  # Adjust response model to your schema if needed
 )
 async def get_application_data(
     application_id: str,
@@ -103,10 +103,11 @@ async def get_application_data(
         )
 
         if not document:
-            raise HTTPException(status_code=404, detail=f"No data found for application ID: {application_id}")
+            raise HTTPException(status_code=404, detail=f"No data found for application ID: {application_id} with user ID: {user_id}")
 
-        # Extract and return the specific application data
-        return document["content"][application_id]
+        application_data = document.get("content", {}).get(application_id, {})
+
+        return JobData(**application_data)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch application data: {str(e)}")
