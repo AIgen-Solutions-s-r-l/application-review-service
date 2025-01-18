@@ -1,9 +1,9 @@
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "lorenzo", "password": "12345678"}'
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "johndoe", "password": "securepassword"}'
 
-curl -X GET "http://localhost:8008/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTIwMzk2fQ._whLR_h4GL1O_KbplCLd-56uTDZcH8cH5Qf36BFwsoM"
+curl -X GET "http://localhost:8010/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MjE0NTY0fQ.yg0YZbaj3kdSZtFsKEMJCj8VWmzkTU0r-fgrxo8mdfg"
 
-curl -X GET "http://localhost:8008/apply_content/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2NTIwMzk2fQ._whLR_h4GL1O_KbplCLd-56uTDZcH8cH5Qf36BFwsoM"
+curl -X GET "http://localhost:8010/apply_content/d608ed14-d759-4f3d-90f0-c7f72501cfed" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MjE0NTY0fQ.yg0YZbaj3kdSZtFsKEMJCj8VWmzkTU0r-fgrxo8mdfg"
 
 curl -X POST "http://localhost:8010/apply_selected" \
 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MDYxMjE1fQ.4SdOYPXFm-hYpZjguLbHS4sHbcO3Ab1KpRxN_XRXzps" \
@@ -30,15 +30,15 @@ curl -X PUT "http://localhost:8008/modify_application/3c916dfc-d0d7-4f8e-b3b0-33
     ]
 }'
 
-curl -X PUT "http://localhost:8010/update_application/resume_optimized/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" \
-     -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2Njg4NDc5fQ.2ytP1Pnuw3fzepG5xBqES4Y_7d0YmsHtbReKiUpGHPQ" \
+curl -X PUT "http://localhost:8010/update_application/resume_optimized/d608ed14-d759-4f3d-90f0-c7f72501cfed" \
+     -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MjE0NTY0fQ.yg0YZbaj3kdSZtFsKEMJCj8VWmzkTU0r-fgrxo8mdfg" \
      -H "Content-Type: application/json" \
      -d '{
        "resume": {
          "header": {
            "personal_information": {
              "name": "Marco",
-             "surname": "Rossi",
+             "surname": "Bianchi",
              "date_of_birth": "15/08/1995",
              "country": "Germany",
              "city": "Berlin",
@@ -107,7 +107,7 @@ curl -X PUT "http://localhost:8010/update_application/resume_optimized/3c916dfc-
                "description": "Developed features for an open project improving its performance and documentation.",
                "technologies": [
                  "Python",
-                 "Flask"
+                 "Django"
                ]
              }
            ],
@@ -181,7 +181,7 @@ curl -X PUT "http://localhost:8010/update_application/cover_letter/3c916dfc-d0d7
        "cover_letter": {
          "header": {
            "applicant_details": {
-             "name": "Marco Rossi",
+             "name": "Marco Bianchi",
              "address": "Corso Buenos Aires 12",
              "city_state_zip": "Milan, Italy",
              "email": "marco.rossiiiiiii@example.com",

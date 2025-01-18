@@ -1,11 +1,14 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Any, List, Dict
 from app.core.rabbitmq_client import rabbit_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
+from app.models.job import JobData
+from app.models.resume import Resume
 from app.services.applier import send_data_to_microservices, ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
+from app.schemas.app_jobs import JobApplicationRequest
 
 router = APIRouter()
 
@@ -16,7 +19,7 @@ def get_rabbitmq_client() -> AsyncRabbitMQClient:
     "/apply_content",
     summary="Retrieve career documents for the authenticated user",
     description="Fetch all career document responses associated with the user_id in the JWT, excluding resume_optimized and cover_letter",
-    response_model=dict,
+    response_model=JobApplicationRequest,
 )
 async def get_career_docs(
     current_user=Depends(get_current_user),
@@ -49,12 +52,16 @@ async def get_career_docs(
 
         # Remove 'resume_optimized' and 'cover_letter' dynamically from the content
         content = document.get("content", {})
-        for app_id, app_data in content.items():
-            if isinstance(app_data, dict):  # Ensure the app_data is a dictionary
+        jobs = []
+
+        for app_data in content.values():
+            if isinstance(app_data, dict):
                 app_data.pop("resume_optimized", None)
                 app_data.pop("cover_letter", None)
+                # Directly unpack the dictionary into JobData
+                jobs.append(JobData(**app_data))
 
-        return content
+        return JobApplicationRequest(jobs=jobs)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
@@ -63,7 +70,7 @@ async def get_career_docs(
     "/apply_content/{application_id}",
     summary="Retrieve specific application data for the authenticated user",
     description="Fetch the specific career document response associated with the given application ID.",
-    response_model=dict,  # Adjust response model to your schema if needed
+    response_model=JobData,  # Adjust response model to your schema if needed
 )
 async def get_application_data(
     application_id: str,
@@ -97,14 +104,16 @@ async def get_application_data(
         )
 
         if not document:
-            raise HTTPException(status_code=404, detail=f"No data found for application ID: {application_id}")
+            raise HTTPException(status_code=404, detail=f"No data found for application ID: {application_id} with user ID: {user_id}")
 
-        # Extract and return the specific application data
-        return document["content"][application_id]
+        application_data = document.get("content", {}).get(application_id, {})
+
+        return JobData(**application_data)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch application data: {str(e)}")
 
+# Unused for MVP
 @router.put(
     "/modify_application/{application_id}",
     summary="Modify specific fields of an application",
@@ -173,7 +182,7 @@ async def modify_application_content(
 )
 async def replace_resume_optimized(
     application_id: str,
-    new_resume_optimized: Dict[str, Any],
+    request: Request,
     current_user=Depends(get_current_user),
     mongo_client=Depends(get_mongo_client),
 ):
@@ -182,7 +191,7 @@ async def replace_resume_optimized(
 
     Args:
         application_id (str): The unique ID of the application to update.
-        new_resume_optimized (Dict[str, Any]): The new 'resume_optimized' object that will overwrite the existing one.
+        request (Request): Raw request to validate input data.
         current_user: The authenticated user ID obtained from get_current_user.
         mongo_client: MongoDB client instance.
 
@@ -197,6 +206,23 @@ async def replace_resume_optimized(
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
+        raw_data = await request.json()
+        resume_data = raw_data.get("resume")
+        if not resume_data:
+            raise HTTPException(status_code=422, detail="Missing 'resume' key in the input data.")
+
+        try:
+            new_resume_optimized = Resume.model_validate(resume_data)
+        except Exception as validation_error:
+            print(f"Validation error: {validation_error}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid resume structure: {validation_error}"
+            )
+
+        # Debugging: Log the parsed data
+        print(f"Validated resume data: {new_resume_optimized}")
+
         # Check if this application exists for this user
         existing_document = await collection.find_one(
             {"user_id": user_id, f"content.{application_id}.resume_optimized": {"$exists": True}},
@@ -209,10 +235,13 @@ async def replace_resume_optimized(
                 detail=f"Application ID '{application_id}' not found or missing 'resume_optimized' section."
             )
 
+        # Serialize the Resume model to a dictionary
+        serialized_data = new_resume_optimized.model_dump()
+
         # Replace the entire 'resume_optimized' content
         result = await collection.update_one(
             {"user_id": user_id},
-            {"$set": {f"content.{application_id}.resume_optimized": new_resume_optimized}}
+            {"$set": {f"content.{application_id}.resume_optimized": serialized_data}}
         )
 
         if result.matched_count == 0:
@@ -222,8 +251,7 @@ async def replace_resume_optimized(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
+    
 @router.put(
     "/update_application/cover_letter/{application_id}",
     summary="Replace the entire 'cover_letter' data for an application",
