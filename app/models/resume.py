@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, AnyUrl, Field, field_serializer
 from typing import Optional, List, Dict, Union
 from pydantic_core import Url
 
+
 class PersonalInformation(BaseModel):
     name: Optional[str] = None
     surname: Optional[str] = None
@@ -11,35 +12,38 @@ class PersonalInformation(BaseModel):
     address: Optional[str] = None
     zip_code: Optional[str] = Field(None, max_length=10)
     phone_prefix: Optional[str] = None
-    phone: Optional[str] = None
+    phone: Optional[Union[str, int]] = None
     email: Optional[EmailStr] = None
     github: Optional[Union[AnyUrl, str]] = None
     linkedin: Optional[Union[AnyUrl, str]] = None
 
-    @field_serializer('github', 'linkedin')
+    @field_serializer("github", "linkedin")
     def url2str(self, val) -> Optional[str]:
         if isinstance(val, Url):
             return str(val)
         return val
 
+
 class RelevantModule(BaseModel):
     module: Optional[str] = None
     grade: Optional[str] = None
 
+
 class ExamDetails(BaseModel):
     relevant_modules: Optional[List[RelevantModule]] = None
 
-class EducationDetails(BaseModel):
+
+class EducationDetail(BaseModel):
     education_level: Optional[str] = None
     institution: Optional[str] = None
     field_of_study: Optional[str] = None
     final_evaluation_grade: Optional[str] = None
-    start_date: Optional[str] = None
-    year_of_completion: Optional[Union[int, str]] = None
-    exam: Optional[Union[List[Dict[str, str]],
-                         Dict[str, str], ExamDetails]] = None
+    start_date: Optional[int] = None
+    year_of_completion: Optional[int] = None
+    exam: Optional[Dict[str, Union[float, int]]] = None
 
-class ExperienceDetails(BaseModel):
+
+class ExperienceDetail(BaseModel):
     position: Optional[str] = None
     company: Optional[str] = None
     employment_period: Optional[str] = None
@@ -48,34 +52,41 @@ class ExperienceDetails(BaseModel):
     key_responsibilities: Optional[List[str]] = None
     skills_acquired: Optional[List[str]] = None
 
+
 class Project(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     link: Optional[Union[AnyUrl, str]] = None
 
-    @field_serializer('link')
+    @field_serializer("link")
     def url2str(self, val) -> Optional[str]:
         if isinstance(val, Url):
             return str(val)
         return val
 
+
 class Achievement(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+
 
 class Certification(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
 
+
 class Language(BaseModel):
     language: Optional[str] = None
     proficiency: Optional[str] = None
 
+
 class Availability(BaseModel):
     notice_period: Optional[str] = None
 
+
 class SalaryExpectations(BaseModel):
     salary_range_usd: Optional[str] = None
+
 
 class SelfIdentification(BaseModel):
     gender: Optional[str] = None
@@ -84,6 +95,7 @@ class SelfIdentification(BaseModel):
     disability: Optional[str] = None
     ethnicity: Optional[str] = None
 
+
 class WorkPreferences(BaseModel):
     remote_work: Optional[str] = None
     in_person_work: Optional[str] = None
@@ -91,6 +103,7 @@ class WorkPreferences(BaseModel):
     willing_to_complete_assessments: Optional[str] = None
     willing_to_undergo_drug_tests: Optional[str] = None
     willing_to_undergo_background_checks: Optional[str] = None
+
 
 class LegalAuthorization(BaseModel):
     eu_work_authorization: Optional[str] = None
@@ -110,19 +123,31 @@ class LegalAuthorization(BaseModel):
     legally_allowed_to_work_in_uk: Optional[str] = None
     requires_uk_sponsorship: Optional[str] = None
 
-class ResumeBase(BaseModel):
-    education_details: Optional[List[EducationDetails]] = None
-    experience_details: Optional[List[ExperienceDetails]] = None
-    projects: Optional[List[Project]] = None
-    achievements: Optional[List[Achievement]] = None
-    certifications: Optional[List[Certification]] = None
-    languages: Optional[List[Language]] = None
-    interests: Optional[List[str]] = None
-    self_identification: Optional[SelfIdentification] = None
-    legal_authorization: Optional[LegalAuthorization] = None
-    work_preferences: Optional[WorkPreferences] = None
-    availability: Optional[Availability] = None
-    salary_expectations: Optional[SalaryExpectations] = None
 
-class ChangeResume(ResumeBase):
-    personal_information: Optional[PersonalInformation]
+class AdditionalSkills(BaseModel):
+    additional_skills: Optional[List[str]] = None
+    languages: Optional[List[Language]] = None
+
+
+class SideProject(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    technologies: Optional[List[str]] = None
+
+
+class ResumeBody(BaseModel):
+    education_details: Optional[Dict[str, List[EducationDetail]]] = None
+    experience_details: Optional[Dict[str, List[ExperienceDetail]]] = None
+    side_projects: Optional[List[SideProject]] = None
+    achievements: Optional[Dict[str, List[Achievement]]] = None
+    certifications: Optional[Dict[str, List[Certification]]] = None
+    additional_skills: Optional[AdditionalSkills] = None
+
+
+class ResumeHeader(BaseModel):
+    personal_information: Optional[PersonalInformation] = None
+
+
+class Resume(BaseModel):
+    header: Optional[ResumeHeader] = None
+    body: Optional[ResumeBody] = None

@@ -1,10 +1,11 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Any, List, Dict
 from app.core.rabbitmq_client import rabbit_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
 from app.models.job import JobData
+from app.models.resume import Resume
 from app.services.applier import send_data_to_microservices, ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.schemas.app_jobs import JobApplicationRequest
@@ -181,7 +182,7 @@ async def modify_application_content(
 )
 async def replace_resume_optimized(
     application_id: str,
-    new_resume_optimized: Dict[str, Any],
+    request: Request,
     current_user=Depends(get_current_user),
     mongo_client=Depends(get_mongo_client),
 ):
@@ -190,7 +191,7 @@ async def replace_resume_optimized(
 
     Args:
         application_id (str): The unique ID of the application to update.
-        new_resume_optimized (Dict[str, Any]): The new 'resume_optimized' object that will overwrite the existing one.
+        request (Request): Raw request to validate input data.
         current_user: The authenticated user ID obtained from get_current_user.
         mongo_client: MongoDB client instance.
 
@@ -205,6 +206,23 @@ async def replace_resume_optimized(
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
+        raw_data = await request.json()
+        resume_data = raw_data.get("resume")
+        if not resume_data:
+            raise HTTPException(status_code=422, detail="Missing 'resume' key in the input data.")
+
+        try:
+            new_resume_optimized = Resume.model_validate(resume_data)
+        except Exception as validation_error:
+            print(f"Validation error: {validation_error}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid resume structure: {validation_error}"
+            )
+
+        # Debugging: Log the parsed data
+        print(f"Validated resume data: {new_resume_optimized}")
+
         # Check if this application exists for this user
         existing_document = await collection.find_one(
             {"user_id": user_id, f"content.{application_id}.resume_optimized": {"$exists": True}},
@@ -217,10 +235,13 @@ async def replace_resume_optimized(
                 detail=f"Application ID '{application_id}' not found or missing 'resume_optimized' section."
             )
 
+        # Serialize the Resume model to a dictionary
+        serialized_data = new_resume_optimized.model_dump()
+
         # Replace the entire 'resume_optimized' content
         result = await collection.update_one(
             {"user_id": user_id},
-            {"$set": {f"content.{application_id}.resume_optimized": new_resume_optimized}}
+            {"$set": {f"content.{application_id}.resume_optimized": serialized_data}}
         )
 
         if result.matched_count == 0:
@@ -230,8 +251,7 @@ async def replace_resume_optimized(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
+    
 @router.put(
     "/update_application/cover_letter/{application_id}",
     summary="Replace the entire 'cover_letter' data for an application",
