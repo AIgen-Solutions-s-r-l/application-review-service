@@ -8,7 +8,7 @@ from app.models.job import JobData
 from app.models.resume import Resume
 from app.services.applier import send_data_to_microservices, ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
-from app.schemas.app_jobs import ApplyContent
+from app.schemas.app_jobs import ApplyContent, DetailedJobData
 
 router = APIRouter()
 
@@ -61,7 +61,7 @@ async def get_career_docs(
     "/apply_content/{application_id}",
     summary="Retrieve specific application data for the authenticated user",
     description="Fetch the specific career document response associated with the given application ID.",
-    response_model=JobData,  # Adjust response model to your schema if needed
+    response_model=DetailedJobData,
 )
 async def get_application_data(
     application_id: str,
@@ -99,7 +99,7 @@ async def get_application_data(
 
         application_data = document.get("content", {}).get(application_id, {})
 
-        return JobData(**application_data)
+        return DetailedJobData(**application_data)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch application data: {str(e)}")
