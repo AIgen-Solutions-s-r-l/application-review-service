@@ -8,7 +8,7 @@ from app.models.job import JobData
 from app.models.resume import Resume
 from app.services.applier import send_data_to_microservices, ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
-from app.schemas.app_jobs import JobApplicationRequest
+from app.schemas.app_jobs import ApplyContent
 
 router = APIRouter()
 
@@ -19,26 +19,13 @@ def get_rabbitmq_client() -> AsyncRabbitMQClient:
     "/apply_content",
     summary="Retrieve career documents for the authenticated user",
     description="Fetch all career document responses associated with the user_id in the JWT, excluding resume_optimized and cover_letter",
-    response_model=JobApplicationRequest,
+    response_model=ApplyContent,  # Use our new Pydantic model here
 )
 async def get_career_docs(
     current_user=Depends(get_current_user),
     mongo_client=Depends(get_mongo_client),
 ):
-    """
-    Retrieve career document responses for the authenticated user, excluding all 'resume_optimized' and 'cover_letter' fields.
-
-    Args:
-        current_user: The authenticated user's ID obtained from the JWT.
-        mongo_client: MongoDB client instance.
-
-    Returns:
-        dict: A dictionary containing the 'content' field with 'resume_optimized' and 'cover_letter' fields removed.
-
-    Raises:
-        HTTPException: If no document is found or a database error occurs.
-    """
-    user_id = current_user  # Assuming `get_current_user` directly returns the user_id
+    user_id = current_user  # or however you get the user ID
 
     try:
         db = mongo_client.get_database("resumes")
@@ -50,21 +37,25 @@ async def get_career_docs(
         if not document:
             raise HTTPException(status_code=404, detail="No career documents found for the user.")
 
-        # Remove 'resume_optimized' and 'cover_letter' dynamically from the content
         content = document.get("content", {})
-        jobs = []
 
-        for app_data in content.values():
+        # We'll build a dict of app_id -> job_data
+        jobs_dict = {}
+
+        for app_id, app_data in content.items():
             if isinstance(app_data, dict):
                 app_data.pop("resume_optimized", None)
                 app_data.pop("cover_letter", None)
-                # Directly unpack the dictionary into JobData
-                jobs.append(JobData(**app_data))
 
-        return JobApplicationRequest(jobs=jobs)
+                jobs_dict[app_id] = JobData(**app_data)
+
+        return ApplyContent(jobs=jobs_dict)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch career documents: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch career documents: {str(e)}"
+        )
     
 @router.get(
     "/apply_content/{application_id}",
