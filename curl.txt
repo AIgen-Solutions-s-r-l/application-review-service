@@ -1,15 +1,15 @@
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "lorenzo", "password": "12345678"}'
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "johndoe", "password": "securepassword"}'
 
-curl -X GET "http://localhost:8010/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MjE0NTY0fQ.yg0YZbaj3kdSZtFsKEMJCj8VWmzkTU0r-fgrxo8mdfg"
+curl -X GET "http://localhost:8012/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MzE3NzQxfQ.bD3K6s_7uYpGzAyCu-d9DHmbwg9gJ4-DlOWlsaE9u7o"
 
-curl -X GET "http://localhost:8010/apply_content/d608ed14-d759-4f3d-90f0-c7f72501cfed" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MjE0NTY0fQ.yg0YZbaj3kdSZtFsKEMJCj8VWmzkTU0r-fgrxo8mdfg"
+curl -X GET "http://localhost:8012/apply_content/30302425-44ca-466a-ae37-87a5039d73ee" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MzE3NzQxfQ.bD3K6s_7uYpGzAyCu-d9DHmbwg9gJ4-DlOWlsaE9u7o"
 
 curl -X POST "http://localhost:8010/apply_selected" \
 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM3MDYxMjE1fQ.4SdOYPXFm-hYpZjguLbHS4sHbcO3Ab1KpRxN_XRXzps" \
 -H "Content-Type: application/json" \
 -d '[
-    "d608ed14-d759-4f3d-90f0-c7f72501cfed"
+    "30302425-44ca-466a-ae37-87a5039d73ee"
 ]'
 
 curl -X POST "http://localhost:8009/apply_all" \
