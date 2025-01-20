@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
-from app.core.rabbitmq_client import AsyncRabbitMQClient
-from app.core.config import Settings
+from app.core.rabbitmq_client import rabbit_client
 
 
 class BasePublisher(ABC):
-    def __init__(self, settings: Settings):
-        self.settings = settings
-        self.rabbitmq_client = AsyncRabbitMQClient(settings.rabbitmq_url)
+    def __init__(self):
+        self.rabbitmq_client = rabbit_client
         self.queue_name = self.get_queue_name()
 
     @abstractmethod

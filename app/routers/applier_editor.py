@@ -6,9 +6,11 @@ from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
 from app.models.job import JobData
 from app.models.resume import Resume
-from app.services.applier import send_data_to_microservices, ensure_dict
+from app.services.applier import ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.schemas.app_jobs import ApplyContent, DetailedJobData
+
+from app.services.generic_publisher import generic_publisher
 
 router = APIRouter()
 
@@ -322,7 +324,7 @@ async def process_career_docs(
             )
 
         # Send the entire document to the microservices
-        await send_data_to_microservices(document, rabbitmq)
+        await generic_publisher.publish_data_to_microservices(document)
 
         # Update `sent` field to True for all applications
         for app_id in document.keys():
@@ -393,7 +395,7 @@ async def process_selected_applications(
         }
 
         # Send the filtered document to RabbitMQ
-        await send_data_to_microservices(filtered_document, rabbitmq)
+        await generic_publisher.publish_data_to_microservices(filtered_document)
 
         # Update the "sent" field to True for the selected application IDs
         for app_id in application_ids:

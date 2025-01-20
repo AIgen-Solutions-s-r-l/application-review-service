@@ -2,21 +2,19 @@ import json
 from loguru import logger
 from app.core.exceptions import DatabaseOperationError, InvalidRequestError
 from app.core.mongo import get_mongo_client
-from app.core.redis_client import RedisClient
+from app.core.redis_client import redis_client
 from app.services.base_consumer import BaseConsumer
 from app.core.config import settings
-from app.services.career_docs_publisher import CareerDocsPublisher
-from app.services.database_consumer import DatabaseConsumer
+from app.services.career_docs_publisher import career_docs_publisher
 
 mongo_client = get_mongo_client()
 
 class CareerDocsConsumer(BaseConsumer):
 
-    def __init__(self, jobs_redis_client: RedisClient, career_docs_publisher: CareerDocsPublisher, database_consumer: DatabaseConsumer):
+    def __init__(self):
         super(self).__init__()
-        self.jobs_redis_client = jobs_redis_client
+        self.jobs_redis_client = redis_client
         self.career_docs_publisher = career_docs_publisher
-        self.database_consumer = database_consumer
 
     def _ensure_dict(data):
         while isinstance(data, str):
@@ -121,11 +119,7 @@ class CareerDocsConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
             raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
-        
 
-    async def _refill_queue(self):
-        queue_size = self.career_docs_publisher.get_queue_size()
-    
 
     async def process_message(self, message: dict):
         """
@@ -143,5 +137,8 @@ class CareerDocsConsumer(BaseConsumer):
         content = self._retrieve_content_from_redis(message)
 
         await self._update_career_docs_responses(user_id, content)
+
+        await self.career_docs_publisher.refill_queue()
         
 
+career_docs_consumer = CareerDocsConsumer()

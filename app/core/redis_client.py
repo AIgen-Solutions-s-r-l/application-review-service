@@ -20,6 +20,7 @@ Attributes:
 from typing import Optional
 import redis
 from loguru import logger
+from app.core.config import settings
 
 
 class RedisClient:
@@ -160,3 +161,6 @@ class RedisClient:
                 logger.info("Redis connection closed.")
             except redis.RedisError as e:
                 logger.error(f"Error closing Redis connection: {e}")
+
+
+redis_client = RedisClient(host='localhost', port=settings.redis_port, db=0)

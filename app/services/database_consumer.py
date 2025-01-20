@@ -21,7 +21,7 @@ class DatabaseConsumer:
 
         return data
 
-    async def retrieve_one_application_from_db() -> tuple[int, list] | None:
+    async def retrieve_one_batch_from_db() -> tuple[int, list] | None:
         """
         Consumes job data from MongoDB to be sent into CareerDocs queue
 
@@ -67,5 +67,4 @@ class DatabaseConsumer:
             return user_id, jobs_field
 
 
-
-  
+database_consumer = DatabaseConsumer()

@@ -3,14 +3,17 @@ from loguru import logger
 import uuid
 from app.core.config import settings
 from app.core.exceptions import JobApplicationError
-from app.core.redis_client import RedisClient
+from app.core.redis_client import redis_client
+from app.services.database_consumer import database_consumer
 from app.services.base_publisher import BasePublisher
 
 class CareerDocsPublisher(BasePublisher):
 
-    def __init__(self, redis_client_jobs: RedisClient):
+    MAX_QUEUE_SIZE: int = 100
+
+    def __init__(self):
         super(self).__init__()
-        self.redis_client_jobs = redis_client_jobs
+        self.redis_client_jobs = redis_client
 
     def get_queue_name(self):
         return settings.career_docs_queue
@@ -78,9 +81,28 @@ class CareerDocsPublisher(BasePublisher):
         message = {"user_id": user_id, "jobs": jobs}
         try:
             
-            await self.publish(message)
+            await self.publish(message, True)
 
             logger.info(f"Notification sent to career_docs for user {user_id}")
         except Exception as e:
             logger.error(f"Failed to send notification to career_docs for user {user_id}: {str(e)}")
             raise JobApplicationError(f"Failed to notify career_docs for user {user_id}")
+        
+        
+    async def refill_queue(self):
+        """
+        Continuously checks the queue size and pushes new application batches onto it until it is full:
+        it is kind of slow as it keeps querying the queue size and extracting one batch at a time from
+        the db, however it should be still faster than CareerDocs and ensures consistency in the workload
+        
+        """
+        await queue_size = self.get_queue_size()
+
+        while queue_size < CareerDocsPublisher.MAX_QUEUE_SIZE:
+            user_id, jobs = await database_consumer.retrieve_one_batch_from_db()
+            if user_id is not None and jobs is not None:
+                await self.publish_applications(user_id, jobs)
+                queue_size = await self.get_queue_size()
+        
+
+career_docs_publisher = CareerDocsPublisher()

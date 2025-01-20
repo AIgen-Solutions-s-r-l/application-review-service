@@ -1,14 +1,12 @@
 import json
 from abc import ABC, abstractmethod
 from aio_pika import IncomingMessage
-from app.core.rabbitmq_client import AsyncRabbitMQClient
-from app.core.config import Settings
+from app.core.rabbitmq_client import rabbit_client
 
 
 class BaseConsumer(ABC):
-    def __init__(self, settings: Settings):
-        self.settings = settings
-        self.rabbitmq_client = AsyncRabbitMQClient(settings.rabbitmq_url)
+    def __init__(self):
+        self.rabbitmq_client = rabbit_client
         self.queue_name = self.get_queue_name()
 
     @abstractmethod
@@ -24,7 +22,7 @@ class BaseConsumer(ABC):
     async def consume(self):
         """Consume messages from the queue."""
         await self.rabbitmq_client.connect()
-        await self.rabbitmq_client.consume_messages(self.queue_name, self._message_handler)
+        await self.rabbitmq_client.consume_messages(self.queue_name, self._message_handler, True)
 
     async def _message_handler(self, message: IncomingMessage):
         """Handle incoming RabbitMQ messages."""

@@ -8,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.services.applier import consume_jobs, consume_career_docs_responses
 from app.routers.applier_editor import router as applier_editor_router
 from app.core.rabbitmq_client import rabbit_client
+from app.services.career_docs_consumer import career_docs_consumer
+from app.services.application_manager_consumer import application_manager_consumer
 
 # Configure logging
 logging.basicConfig(
@@ -36,8 +38,9 @@ async def lifespan(app: FastAPI):
 
     # Start background tasks
     try:
-        job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
-        career_docs_response_task = asyncio.create_task(consume_career_docs_responses(mongo_client, rabbit_client, settings))
+        #job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
+        career_docs_response_task = asyncio.create_task(career_docs_consumer.start())
+        application_manager_notification_task = asyncio.create_task(application_manager_consumer.start())
         logger.info("Job consumer task started")
         logger.info("Career docs response consumer task started")
     except Exception as e:
@@ -48,10 +51,10 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # Stop background tasks
-        job_consumer_task.cancel()
+        application_manager_notification_task.cancel()
         career_docs_response_task.cancel()
         try:
-            await job_consumer_task
+            await application_manager_notification_task
             await career_docs_response_task
         except asyncio.CancelledError:
             logger.info("Background tasks cancelled")
