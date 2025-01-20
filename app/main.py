@@ -3,9 +3,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from fastapi import FastAPI
 from app.core.config import settings
-from app.core.rabbitmq_client import AsyncRabbitMQClient
 from motor.motor_asyncio import AsyncIOMotorClient
-from app.services.applier import consume_jobs, consume_career_docs_responses
 from app.routers.applier_editor import router as applier_editor_router
 from app.core.rabbitmq_client import rabbit_client
 from app.services.career_docs_consumer import career_docs_consumer

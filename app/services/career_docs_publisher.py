@@ -12,7 +12,7 @@ class CareerDocsPublisher(BasePublisher):
     MAX_QUEUE_SIZE: int = 100
 
     def __init__(self):
-        super(self).__init__()
+        super().__init__()
         self.redis_client_jobs = redis_client
 
     def get_queue_name(self):
@@ -96,7 +96,7 @@ class CareerDocsPublisher(BasePublisher):
         the db, however it should be still faster than CareerDocs and ensures consistency in the workload
         
         """
-        await queue_size = self.get_queue_size()
+        queue_size = await self.get_queue_size()
 
         while queue_size < CareerDocsPublisher.MAX_QUEUE_SIZE:
             user_id, jobs = await database_consumer.retrieve_one_batch_from_db()

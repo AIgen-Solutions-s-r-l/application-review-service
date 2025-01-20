@@ -6,7 +6,7 @@ from app.services.career_docs_publisher import career_docs_publisher
 class ApplicationManagerConsumer(BaseConsumer):
 
     def __init__(self):
-        super(self).__init__()
+        super().__init__()
         self.career_docs_publisher = career_docs_publisher
 
     def get_queue_name(self):

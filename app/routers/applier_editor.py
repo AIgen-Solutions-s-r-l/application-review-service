@@ -6,7 +6,6 @@ from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
 from app.models.job import JobData
 from app.models.resume import Resume
-from app.services.applier import ensure_dict
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.schemas.app_jobs import ApplyContent, DetailedJobData
 
@@ -16,6 +15,21 @@ router = APIRouter()
 
 def get_rabbitmq_client() -> AsyncRabbitMQClient:
     return rabbit_client
+
+def ensure_dict(data):
+    while isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            break
+
+    if isinstance(data, dict):
+        return {k: ensure_dict(v) for k, v in data.items()}
+
+    if isinstance(data, list):
+        return [ensure_dict(item) for item in data]
+
+    return data
 
 @router.get(
     "/apply_content",

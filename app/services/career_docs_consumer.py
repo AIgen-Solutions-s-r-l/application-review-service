@@ -12,7 +12,7 @@ mongo_client = get_mongo_client()
 class CareerDocsConsumer(BaseConsumer):
 
     def __init__(self):
-        super(self).__init__()
+        super().__init__()
         self.jobs_redis_client = redis_client
         self.career_docs_publisher = career_docs_publisher
 
