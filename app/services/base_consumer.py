@@ -5,7 +5,7 @@ from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.core.config import Settings
 
 
-class BaseApplier(ABC):
+class BaseConsumer(ABC):
     def __init__(self, settings: Settings):
         self.settings = settings
         self.rabbitmq_client = AsyncRabbitMQClient(settings.rabbitmq_url)

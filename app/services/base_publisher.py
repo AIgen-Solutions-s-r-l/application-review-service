@@ -18,3 +18,9 @@ class BasePublisher(ABC):
         """Publishes the message on the queue"""
         await self.rabbitmq_client.connect()
         await self.rabbitmq_client.publish_message(self.queue_name, message, persistent)
+
+    async def get_queue_size(self) -> int:
+        await self.rabbitmq_client.connect()
+        await self.rabbitmq_client.get_queue_size(self.queue_name)
+
+            

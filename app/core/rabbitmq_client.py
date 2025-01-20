@@ -82,4 +82,12 @@ class AsyncRabbitMQClient:
             except Exception as e:
                 logger.error(f"Error while closing RabbitMQ connection: {e}")
 
+    async def get_queue_size(self, queue_name: str) -> int:
+        try:
+            queue = await self.channel.declare_queue(queue_name, passive=True)
+            # TODO: actually get size (there is no documentation online)
+            return -1
+        except aio_pika.exceptions.QueueNotFoundEntity as e:
+            return 0 # non-existent queue is an empty queue
+
 rabbit_client = AsyncRabbitMQClient(rabbitmq_url=settings.rabbitmq_url)

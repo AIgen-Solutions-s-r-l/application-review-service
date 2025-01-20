@@ -1,13 +1,10 @@
 import json
-import logging
+from loguru import logger
 import uuid
 from app.core.config import settings
 from app.core.exceptions import JobApplicationError
 from app.core.redis_client import RedisClient
 from app.services.base_publisher import BasePublisher
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 class CareerDocsPublisher(BasePublisher):
 
