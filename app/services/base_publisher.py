@@ -19,6 +19,6 @@ class BasePublisher(ABC):
 
     async def get_queue_size(self) -> int:
         await self.rabbitmq_client.connect()
-        await self.rabbitmq_client.get_queue_size(self.queue_name)
-
+        queue_size = await self.rabbitmq_client.get_queue_size(self.queue_name)
+        return queue_size
             
