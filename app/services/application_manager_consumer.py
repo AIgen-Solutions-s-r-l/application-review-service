@@ -12,8 +12,8 @@ class ApplicationManagerConsumer(BaseConsumer):
     def get_queue_name(self):
         return settings.application_manager_queue
     
-    def process_message(self, _):
-        career_docs_publisher.refill_queue()
+    async def process_message(self, _):
+        await career_docs_publisher.refill_queue()
 
 
 application_manager_consumer = ApplicationManagerConsumer()
