@@ -21,3 +21,5 @@ class TimedQueueRefiller:
 
     def stop(self):
         self.running = False
+
+timed_queue_refiller = TimedQueueRefiller()

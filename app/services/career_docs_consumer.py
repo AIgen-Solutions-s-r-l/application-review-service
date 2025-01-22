@@ -47,7 +47,7 @@ class CareerDocsConsumer(BaseConsumer):
         
         content = {}
         for correlation_id, job_data in message.items():    # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
-            if correlation_id != "user_id":
+            if correlation_id not in ["user_id", "mongo_id"]:
                 # Get title, description, portal, ... from correlation_mapping
                 original_data_json = self.jobs_redis_client.get(correlation_id)
                 if original_data_json:
@@ -123,6 +123,7 @@ class CareerDocsConsumer(BaseConsumer):
             raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
         
     async def _remove_processed_entry(self, mongo_id: str):
+        logger.log(f"removing processed entity with id: {mongo_id}")
         await self.database_cleaner.clean_from_db(mongo_id)
 
 

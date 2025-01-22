@@ -90,7 +90,7 @@ class CareerDocsPublisher(BasePublisher):
                 logger.error(f"Failed to update 'app_ids' for cv_id '{cv_id}': {str(e)}")
                 raise JobApplicationError("Failed to update 'app_ids' in pdf_resumes collection")
 
-        message = {"user_id": user_id, "jobs": jobs, "mongo_id": mongo_id}
+        message = {"user_id": user_id, "jobs": jobs, "mongo_id": str(mongo_id)}
         try:
             await self.publish(message, True)
 

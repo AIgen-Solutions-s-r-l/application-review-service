@@ -164,3 +164,4 @@ class RedisClient:
 
 
 redis_client = RedisClient(host='localhost', port=settings.redis_port, db=0)
+redis_client.connect()

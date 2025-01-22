@@ -1,4 +1,5 @@
 from app.core.mongo import get_mongo_client
+from bson import ObjectId
 
 class DatabaseCleaner:
 
@@ -9,7 +10,7 @@ class DatabaseCleaner:
         db = self.mongo_client.get_database("resumes")
         collection = db.get_collection("jobs_to_apply_per_user")
 
-        collection.delete_one({"_id": id})
-        
+        collection.delete_one({"_id": ObjectId(id)})
+
 
 database_cleaner = DatabaseCleaner()
