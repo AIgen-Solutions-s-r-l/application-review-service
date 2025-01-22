@@ -43,8 +43,10 @@ class Settings(BaseSettings):
 
     service_name: str = "applier_service"
     rabbitmq_url: str = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+    redis_port: int = 6379
     career_docs_queue: str = "career_docs_queue"
     career_docs_response_queue: str = "career_docs_response_queue"
+    application_manager_queue: str = "middleware_notification_queue"
     mongodb: str = os.getenv("MONGODB", "mongodb://localhost:27017")
 
     model_config = SettingsConfigDict(env_file=".env")
