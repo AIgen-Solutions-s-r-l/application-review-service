@@ -21,7 +21,7 @@ class DatabaseConsumer:
 
         return data
 
-    async def retrieve_one_batch_from_db(self) -> tuple[int, list] | None:
+    async def retrieve_one_batch_from_db(self) -> tuple[int | None, list | None, str | None]:
         """
         Consumes job data from MongoDB to be sent into CareerDocs queue
 
@@ -38,7 +38,7 @@ class DatabaseConsumer:
 
             if user_applications is None:
                 logger.info(f"All jobs have been processed.")
-                return None
+                return None, None, None
 
             await collection.update_one(
                 {"_id": user_applications.get("_id")},

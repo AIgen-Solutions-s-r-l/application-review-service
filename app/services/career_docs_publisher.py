@@ -110,8 +110,9 @@ class CareerDocsPublisher(BasePublisher):
 
         while queue_size < CareerDocsPublisher.MAX_QUEUE_SIZE:
             user_id, jobs, cv_id = await database_consumer.retrieve_one_batch_from_db()
-            if user_id is not None and jobs is not None:
-                await self.publish_applications(user_id, jobs, cv_id)
-                queue_size = await self.get_queue_size()
+            if user_id is None or jobs is None:
+                break
+            await self.publish_applications(user_id, jobs, cv_id)
+            queue_size = await self.get_queue_size()
         
 career_docs_publisher = CareerDocsPublisher()

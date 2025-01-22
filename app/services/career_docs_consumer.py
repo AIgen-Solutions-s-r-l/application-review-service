@@ -110,11 +110,11 @@ class CareerDocsConsumer(BaseConsumer):
             result = await collection.update_one(filter_query, update_query, upsert=True)
 
             if result.upserted_id:
-                logger.info("Successfully inserted new document for user_id: %s", user_id)
+                logger.info(f"Successfully inserted new document for user_id: {user_id}")
             elif result.modified_count > 0:
-                logger.info("Successfully updated existing document for user_id: %s", user_id)
+                logger.info(f"Successfully updated existing document for user_id: {user_id}")
             else:
-                logger.error("Failed to insert or update document for user_id: %s", user_id)
+                logger.error(f"Failed to insert or update document for user_id: {user_id}")
                 raise DatabaseOperationError("Failed to insert or update document in MongoDB")
         except Exception as e:
             logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")

@@ -22,7 +22,7 @@ class BaseConsumer(ABC):
     async def consume(self):
         """Consume messages from the queue."""
         await self.rabbitmq_client.connect()
-        await self.rabbitmq_client.consume_messages(self.queue_name, self._message_handler, True)
+        await self.rabbitmq_client.consume_messages(self.queue_name, self._message_handler)
 
     async def _message_handler(self, message: IncomingMessage):
         """Handle incoming RabbitMQ messages."""
