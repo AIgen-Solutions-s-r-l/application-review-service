@@ -6,6 +6,7 @@ from app.core.redis_client import redis_client
 from app.services.base_consumer import BaseConsumer
 from app.core.config import settings
 from app.services.career_docs_publisher import career_docs_publisher
+from app.services.database_cleaner import database_cleaner
 
 mongo_client = get_mongo_client()
 
@@ -15,6 +16,7 @@ class CareerDocsConsumer(BaseConsumer):
         super().__init__()
         self.jobs_redis_client = redis_client
         self.career_docs_publisher = career_docs_publisher
+        self.database_cleaner = database_cleaner
 
     def _ensure_dict(data):
         while isinstance(data, str):
@@ -119,6 +121,9 @@ class CareerDocsConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
             raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
+        
+    async def _remove_processed_entry(self, mongo_id: str):
+        await self.database_cleaner.clean_from_db(mongo_id)
 
 
     async def process_message(self, message: dict):
@@ -137,6 +142,11 @@ class CareerDocsConsumer(BaseConsumer):
         content = self._retrieve_content_from_redis(message)
 
         await self._update_career_docs_responses(user_id, content)
+
+        mongo_id = message.get("mongo_id")
+
+        if not mongo_id is None:
+            await self._remove_processed_entry(mongo_id)
 
         await self.career_docs_publisher.refill_queue()
         
