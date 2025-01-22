@@ -21,7 +21,7 @@ class DatabaseConsumer:
 
         return data
 
-    async def retrieve_one_batch_from_db(self) -> tuple[int | None, list | None, str | None]:
+    async def retrieve_one_batch_from_db(self) -> tuple[int | None, list | None, str | None, str | None]:
         """
         Consumes job data from MongoDB to be sent into CareerDocs queue
 
@@ -38,7 +38,7 @@ class DatabaseConsumer:
 
             if user_applications is None:
                 logger.info(f"All jobs have been processed.")
-                return None, None, None
+                return None, None, None, None
 
             await collection.update_one(
                 {"_id": user_applications.get("_id")},
@@ -48,6 +48,7 @@ class DatabaseConsumer:
             user_id = user_applications.get("user_id")
             jobs_field = user_applications.get("jobs")
             cv_id = user_applications.get("cv_id")
+            mongo_id = user_applications.get("_id")
 
             if not user_id or not jobs_field:
                 logger.warning("Invalid document structure, skipping.")
@@ -68,6 +69,6 @@ class DatabaseConsumer:
                 logger.warning("'jobs' field does not contain valid job dictionaries, skipping document.")
                 continue
 
-            return user_id, jobs_field, cv_id
+            return user_id, jobs_field, cv_id, mongo_id
 
 database_consumer = DatabaseConsumer()

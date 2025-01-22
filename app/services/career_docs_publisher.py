@@ -42,7 +42,7 @@ class CareerDocsPublisher(BasePublisher):
                 raise JobApplicationError("Failed to generate a unique UUID")
             
     
-    async def publish_applications(self, user_id: str, jobs: list, cv_id: str | None):
+    async def publish_applications(self, user_id: str, jobs: list, cv_id: str | None, mongo_id: str):
     
         """
         Publishes a message to the career_docs queue with the user_id and jobs list.
@@ -90,7 +90,7 @@ class CareerDocsPublisher(BasePublisher):
                 logger.error(f"Failed to update 'app_ids' for cv_id '{cv_id}': {str(e)}")
                 raise JobApplicationError("Failed to update 'app_ids' in pdf_resumes collection")
 
-        message = {"user_id": user_id, "jobs": jobs}
+        message = {"user_id": user_id, "jobs": jobs, "mongo_id": str(mongo_id)}
         try:
             await self.publish(message, True)
 
@@ -109,10 +109,10 @@ class CareerDocsPublisher(BasePublisher):
         queue_size = await self.get_queue_size()
 
         while queue_size < CareerDocsPublisher.MAX_QUEUE_SIZE:
-            user_id, jobs, cv_id = await database_consumer.retrieve_one_batch_from_db()
+            user_id, jobs, cv_id, mongo_id = await database_consumer.retrieve_one_batch_from_db()
             if user_id is None or jobs is None:
                 break
-            await self.publish_applications(user_id, jobs, cv_id)
+            await self.publish_applications(user_id, jobs, cv_id, mongo_id)
             queue_size = await self.get_queue_size()
         
 career_docs_publisher = CareerDocsPublisher()
