@@ -47,6 +47,7 @@ class DatabaseConsumer:
 
             user_id = user_applications.get("user_id")
             jobs_field = user_applications.get("jobs")
+            cv_id = user_applications.get("cv_id")
 
             if not user_id or not jobs_field:
                 logger.warning("Invalid document structure, skipping.")
@@ -67,7 +68,6 @@ class DatabaseConsumer:
                 logger.warning("'jobs' field does not contain valid job dictionaries, skipping document.")
                 continue
 
-            return user_id, jobs_field
-
+            return user_id, jobs_field, cv_id
 
 database_consumer = DatabaseConsumer()

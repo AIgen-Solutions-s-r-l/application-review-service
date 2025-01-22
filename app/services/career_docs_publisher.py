@@ -39,7 +39,7 @@ class CareerDocsPublisher(BasePublisher):
                 raise JobApplicationError("Failed to generate a unique UUID")
             
     
-    async def publish_applications(self, user_id: str, jobs: list):
+    async def publish_applications(self, user_id: str, jobs: list, cv_id: str | None):
     
         """
         Publishes a message to the career_docs queue with the user_id and jobs list.
@@ -94,9 +94,9 @@ class CareerDocsPublisher(BasePublisher):
         queue_size = await self.get_queue_size()
 
         while queue_size < CareerDocsPublisher.MAX_QUEUE_SIZE:
-            user_id, jobs = await database_consumer.retrieve_one_batch_from_db()
+            user_id, jobs, cv_id = await database_consumer.retrieve_one_batch_from_db()
             if user_id is not None and jobs is not None:
-                await self.publish_applications(user_id, jobs)
+                await self.publish_applications(user_id, jobs, cv_id)
                 queue_size = await self.get_queue_size()
         
 
