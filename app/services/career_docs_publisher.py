@@ -59,15 +59,10 @@ class CareerDocsPublisher(BasePublisher):
         for job in jobs:
             correlation_id = self._generate_unique_uuid()
             
-            job["correlation_id"] = correlation_id      # add correlation_id to the job data
+            job["correlation_id"] = correlation_id  # add correlation_id to the job data
 
             try:
-                redis_value = {
-                    "job_id": job.get("job_id"),
-                    "title": job.get("title"),
-                    "description": job.get("description"),
-                    "portal": job.get("portal"),
-                }
+                redis_value = {key: value for key, value in job.items() if value is not None}
                 success = self.redis_client_jobs.set(correlation_id, json.dumps(redis_value))
 
                 if not success:

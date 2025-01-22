@@ -46,14 +46,14 @@ class CareerDocsConsumer(BaseConsumer):
         content = {}
         for correlation_id, job_data in message.items():    # Loop through both keys (correlation_id) and values ({cv, cover_letter, responses})
             if correlation_id != "user_id":
-                # Get title, description, portal from correlation_mapping
+                # Get title, description, portal, ... from correlation_mapping
                 original_data_json = self.jobs_redis_client.get(correlation_id)
                 if original_data_json:
                     # Deserialize the JSON string back into a dictionary
                     original_data = CareerDocsConsumer._ensure_dict(original_data_json)
                     job_data = CareerDocsConsumer._ensure_dict(job_data)
 
-                    # Update the value (job_data) with the job_id, title, description, portal of that job
+                    # Update the value (job_data) with the job_id, title, description, portal, ... of that job
                     job_data.update(original_data)
 
                     # TODO: Maybe in future avoid deletion here & keep this for a bit longer to cache (due to non batch processing)
