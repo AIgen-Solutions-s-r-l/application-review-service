@@ -26,4 +26,4 @@ class JobData(JobResponse):
     id: int = Field(None, description="The unique ID of the job record.")
     job_id: int = Field(None, description="The ID of the job.")
     portal: Optional[str] = Field(None, description="The portal where the job was found.")
-    cv_gen: Optional[bool] = Field(None, description="The CV generation choice.")
+    gen_cv: Optional[bool] = Field(None, description="The CV generation choice.")
