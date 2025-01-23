@@ -120,7 +120,7 @@ class CareerDocsConsumer(BaseConsumer):
             raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
         
     async def _remove_processed_entry(self, mongo_id: str):
-        logger.log(f"removing processed entity with id: {mongo_id}")
+        logger.info(f"removing processed entity with id: {mongo_id}")
         await self.database_cleaner.clean_from_db(mongo_id)
 
 
