@@ -58,10 +58,7 @@ class CareerDocsConsumer(BaseConsumer):
                     # Update the value (job_data) with the job_id, title, description, portal, ... of that job
                     job_data.update(original_data)
 
-                    # TODO: Maybe in future avoid deletion here & keep this for a bit longer to cache (due to non batch processing)
-                    success = self.jobs_redis_client.delete(correlation_id)
-                    if not success:
-                        logger.warning(f"Failed to delete correlation ID '{correlation_id}' from mapping")
+                    # We don't delete here on redis, we delete on app failure or success to avoid re-assigning UUID
                 else:
                     logger.warning(f"Correlation ID '{correlation_id}' not found in Redis mapping")
                     raise InvalidRequestError(f"Invalid correlation ID '{correlation_id}' in response from career_docs")
