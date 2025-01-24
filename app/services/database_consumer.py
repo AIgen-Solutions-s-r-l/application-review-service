@@ -1,27 +1,15 @@
 from loguru import logger
 import json
+
+from pydantic import ValidationError
 from app.core.mongo import get_mongo_client
+from app.schemas.app_jobs import JobsToApplyInfo
 
 mongo_client = get_mongo_client()
 
 class DatabaseConsumer:
 
-    def _ensure_dict(data):
-        while isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except (ValueError, TypeError, json.JSONDecodeError):
-                break
-
-        if isinstance(data, dict):
-            return {k: DatabaseConsumer._ensure_dict(v) for k, v in data.items()}
-
-        if isinstance(data, list):
-            return [DatabaseConsumer._ensure_dict(item) for item in data]
-
-        return data
-
-    async def retrieve_one_batch_from_db(self) -> tuple[int | None, list | None, str | None, str | None]:
+    async def retrieve_one_batch_from_db(self) -> JobsToApplyInfo | None:
         """
         Consumes job data from MongoDB to be sent into CareerDocs queue
 
@@ -38,37 +26,26 @@ class DatabaseConsumer:
 
             if user_applications is None:
                 logger.info(f"All jobs have been processed.")
-                return None, None, None, None
+                return None
 
             await collection.update_one(
                 {"_id": user_applications.get("_id")},
                 {"$set": {"sent": True}}
             )
 
-            user_id = user_applications.get("user_id")
-            jobs_field = user_applications.get("jobs")
-            cv_id = user_applications.get("cv_id")
-            mongo_id = user_applications.get("_id")
+            try:
+                apply_info = JobsToApplyInfo(
+                    user_id = user_applications.get("user_id"),
+                    jobs = user_applications.get("jobs"),
+                    cv_id = user_applications.get("cv_id"),
+                    mongo_id = str(user_applications.get("_id"))
+                )
 
-            if not user_id or not jobs_field:
+                return apply_info
+
+            except ValidationError:
                 logger.warning("Invalid document structure, skipping.")
                 continue
-
-            try:
-                if isinstance(jobs_field, list):
-                    # Parse each JSON string in the list
-                    jobs_field = [DatabaseConsumer._ensure_dict(job) for job in jobs_field]
-                else:
-                    logger.warning("'jobs' field is not a list, skipping document.")
-                    continue
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse 'jobs' JSON: {e}, skipping document.")
-                continue
-
-            if not isinstance(jobs_field, list) or not all(isinstance(job, dict) for job in jobs_field):
-                logger.warning("'jobs' field does not contain valid job dictionaries, skipping document.")
-                continue
-
-            return user_id, jobs_field, cv_id, mongo_id
+            
 
 database_consumer = DatabaseConsumer()
