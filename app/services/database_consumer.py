@@ -38,7 +38,8 @@ class DatabaseConsumer:
                     user_id = user_applications.get("user_id"),
                     jobs = user_applications.get("jobs"),
                     cv_id = user_applications.get("cv_id"),
-                    mongo_id = str(user_applications.get("_id"))
+                    mongo_id = str(user_applications.get("_id")),
+                    style= user_applications.get("style")
                 )
 
                 return apply_info
