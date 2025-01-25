@@ -23,9 +23,11 @@ class CareerDocsResponse(BaseModel):
     user_id: int
     mongo_id: str
     applications: dict[str, CareerDocsData]
+    success: bool
 
 class JobsToApplyInfo(BaseModel):
     user_id: int
     jobs: list[dict]
     mongo_id: str
+    style: str | None = None
     cv_id: str | None = None

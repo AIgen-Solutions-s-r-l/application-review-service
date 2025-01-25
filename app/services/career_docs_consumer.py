@@ -7,7 +7,7 @@ from app.schemas.app_jobs import CareerDocsData, CareerDocsResponse
 from app.services.base_consumer import BaseConsumer
 from app.core.config import settings
 from app.services.career_docs_publisher import career_docs_publisher
-from app.services.database_cleaner import database_cleaner
+from app.services.database_writer import database_writer
 
 mongo_client = get_mongo_client()
 
@@ -17,14 +17,14 @@ class CareerDocsConsumer(BaseConsumer):
         super().__init__()
         self.jobs_redis_client = redis_client
         self.career_docs_publisher = career_docs_publisher
-        self.database_cleaner = database_cleaner
+        self.database_writer = database_writer
 
     
     def get_queue_name(self) -> str:
         return settings.career_docs_response_queue
     
 
-    def _retrieve_content(self, message: dict) -> dict:
+    def _retrieve_content(self, applications: dict[str, CareerDocsData]) -> dict:
         """
         Retrieves immutable data from redis to reconstruct application content (for each application)
 
@@ -33,14 +33,11 @@ class CareerDocsConsumer(BaseConsumer):
         """
 
         content = {}
-
-        job_applications =  CareerDocsResponse(**message)
-
         correlation_id: str
         job_application: CareerDocsData
 
         # Loop through both correlation_id (needed for redis) and values ({cv, cover_letter})
-        for correlation_id, job_application in job_applications.applications.items(): 
+        for correlation_id, job_application in applications.items(): 
             original_data_json: str | None = self.jobs_redis_client.get(correlation_id) 
 
             if original_data_json is None: 
@@ -100,11 +97,14 @@ class CareerDocsConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
             raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
-        
 
     async def _remove_processed_entry(self, mongo_id: str):
         logger.info(f"removing processed entity with id: {mongo_id}")
-        await self.database_cleaner.clean_from_db(mongo_id)
+        await self.database_writer.clean_from_db(mongo_id)
+
+    async def _restore_sent_status(self, mongo_id: str):
+        logger.warning(f"CareerDocs failed, restoring sent status for entity {mongo_id}")
+        await self.database_writer.restore_sent(mongo_id)
 
 
     async def process_message(self, message: dict):
@@ -113,21 +113,19 @@ class CareerDocsConsumer(BaseConsumer):
 
         """
 
-        # Extract user_id field
-        user_id = message.get("user_id")
+        job_applications = CareerDocsResponse(**message)
 
-        if not user_id:
-            logger.warning("No user_id provided in the response data")
-            raise InvalidRequestError("Missing user_id in response from career_docs")
+        if job_applications.success:
 
-        content = self._retrieve_content(message)
+            content = self._retrieve_content(job_applications.applications)
 
-        await self._update_career_docs_responses(user_id, content)
+            await self._update_career_docs_responses(job_applications.user_id, content)
 
-        mongo_id = message.get("mongo_id")
+            await self._remove_processed_entry(job_applications.mongo_id)
 
-        if not mongo_id is None:
-            await self._remove_processed_entry(mongo_id)
+        else:
+
+            await self._restore_sent_status(job_applications.mongo_id)
 
         await self.career_docs_publisher.refill_queue()
         

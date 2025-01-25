@@ -61,10 +61,12 @@ class CareerDocsPublisher(BasePublisher):
             raise JobApplicationError("Redis client is not connected")
 
         correlation_ids = []
+        style_for_all = jobsToApplyInfo.style
 
         for job in jobsToApplyInfo.jobs:
             correlation_id = self._generate_unique_uuid()
             job["correlation_id"] = correlation_id
+            job["style"] = style_for_all
             correlation_ids.append(correlation_id)
 
             try:
