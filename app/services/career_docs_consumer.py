@@ -33,6 +33,7 @@ class CareerDocsConsumer(BaseConsumer):
         """
 
         content = {}
+
         job_applications =  CareerDocsResponse(**message)
 
         correlation_id: str
