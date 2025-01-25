@@ -97,7 +97,6 @@ class CareerDocsConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
             raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
-        
 
     async def _remove_processed_entry(self, mongo_id: str):
         logger.info(f"removing processed entity with id: {mongo_id}")
