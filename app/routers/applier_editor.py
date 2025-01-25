@@ -16,20 +16,6 @@ router = APIRouter()
 def get_rabbitmq_client() -> AsyncRabbitMQClient:
     return rabbit_client
 
-def ensure_dict(data):
-    while isinstance(data, str):
-        try:
-            data = json.loads(data)
-        except (ValueError, TypeError, json.JSONDecodeError):
-            break
-
-    if isinstance(data, dict):
-        return {k: ensure_dict(v) for k, v in data.items()}
-
-    if isinstance(data, list):
-        return [ensure_dict(item) for item in data]
-
-    return data
 
 @router.get(
     "/apply_content",
@@ -163,8 +149,8 @@ async def modify_application_content(
         if not existing_document:
             raise HTTPException(status_code=404, detail=f"Application ID '{application_id}' not found.")
 
-        for field, value in updates.items():
-            updates[field] = ensure_dict(value)
+        #for field, value in updates.items():
+            #updates[field] = ensure_dict(value)
 
         # Perform the update
         update_query = {f"content.{application_id}.{field}": value for field, value in updates.items()}
