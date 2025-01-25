@@ -59,10 +59,7 @@ class CareerDocsConsumer(BaseConsumer):
 
             content[correlation_id] = complete_job_application
 
-            # TODO: Lorenzo wants to move this after the applier response: I don't care
-            success = self.jobs_redis_client.delete(correlation_id)
-            if not success:
-                logger.warning(f"Failed to delete correlation ID '{correlation_id}' from mapping")
+            # We don't delete here on redis, we delete on app failure or success to avoid re-assigning UUID
 
         return content
 
