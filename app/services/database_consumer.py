@@ -30,7 +30,12 @@ class DatabaseConsumer:
 
             await collection.update_one(
                 {"_id": user_applications.get("_id")},
-                {"$set": {"sent": True}}
+                {
+                    "$set": {
+                        "sent": True, 
+                        "retries_left": user_applications.get("retries_left") - 1
+                    }
+                }
             )
 
             try:
