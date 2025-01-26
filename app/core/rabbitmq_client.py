@@ -1,5 +1,3 @@
-# app/core/async_rabbitmq_client.py
-
 import json
 import aio_pika
 import asyncio
@@ -17,17 +15,25 @@ class AsyncRabbitMQClient:
         self.connection: Optional[aio_pika.RobustConnection] = None
         self.channel: Optional[aio_pika.RobustChannel] = None
 
-    async def connect(self) -> None:
-        """Establishes a connection to RabbitMQ."""
+    async def connect(self, max_retries: int = 5, retry_delay: int = 5) -> None:
+        """Establishes a connection to RabbitMQ with retry logic."""
         if self.connection and not self.connection.is_closed:
             return  # Connection is already open
-        try:
-            self.connection = await aio_pika.connect_robust(self.rabbitmq_url)
-            self.channel = await self.connection.channel()
-            logger.info("RabbitMQ connection established")
-        except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {e}")
-            raise
+
+        retries = 0
+        while retries < max_retries:
+            try:
+                self.connection = await aio_pika.connect_robust(self.rabbitmq_url)
+                self.channel = await self.connection.channel()
+                logger.info("RabbitMQ connection established")
+                return
+            except Exception as e:
+                retries += 1
+                logger.error(f"Failed to connect to RabbitMQ (attempt {retries}/{max_retries}): {e}")
+                if retries < max_retries:
+                    await asyncio.sleep(retry_delay)
+                else:
+                    logger.error("Max retries reached. RabbitMQ connection could not be established.")
 
     async def ensure_queue(self, queue_name: str, durable: bool = False) -> aio_pika.Queue:
         """Ensures that a queue exists."""
@@ -66,9 +72,12 @@ class AsyncRabbitMQClient:
                 queue = await self.ensure_queue(queue_name, durable=False)
                 async with queue.iterator() as queue_iter:
                     async for message in queue_iter:
-                        await callback(message)
-                        if auto_ack:
-                            await message.ack()
+                        try:
+                            await callback(message)
+                            if auto_ack:
+                                await message.ack()
+                        except Exception as callback_error:
+                            logger.error(f"Error in callback for message from queue '{queue_name}': {callback_error}")
             except Exception as e:
                 logger.error(f"Error consuming messages from queue '{queue_name}': {e}")
                 await asyncio.sleep(5)  # Wait before reconnecting
@@ -87,6 +96,7 @@ class AsyncRabbitMQClient:
             queue = await self.channel.declare_queue(queue_name, passive=True)
             return queue.declaration_result.message_count
         except aio_pika.exceptions.QueueNotFoundEntity as e:
-            return 0 # non-existent queue is an empty queue
+            logger.warning(f"Queue '{queue_name}' does not exist: {e}")
+            return 0  # Non-existent queue is an empty queue
 
 rabbit_client = AsyncRabbitMQClient(rabbitmq_url=settings.rabbitmq_url)
