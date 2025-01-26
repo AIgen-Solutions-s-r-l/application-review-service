@@ -19,7 +19,10 @@ class DatabaseWriter:
         collection = db.get_collection("jobs_to_apply_per_user")
 
         await collection.update_one(
-            {"_id": ObjectId(mongo_id)},
+            {
+                "_id": ObjectId(mongo_id),
+                "retries_left": {"$gt": 0}
+            },
             {"$set": {"sent": False}}
         )
 
