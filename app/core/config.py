@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # MongoDB settings
     mongodb: str = os.getenv("MONGODB", "mongodb://localhost:27017")
 
+    # Redis settings
+    redis_port: int = 6379
+
     # RabbitMQ settings
     rabbitmq_url: str = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
     career_docs_queue: str = os.getenv("CAREER_DOCS_QUEUE", "career_docs_queue")
