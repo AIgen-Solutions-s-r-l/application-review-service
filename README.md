@@ -392,6 +392,17 @@ curl -X PUT "http://localhost:8008/modify_application/{application_id}" \
 }'
 ```
 
+OR, for the STYLE:
+
+```bash
+curl -X PUT "http://localhost:8008/modify_application/{application_id}" \
+-H "Authorization: Bearer <YOUR TOKEN>" \
+-H "Content-Type: application/json" \
+-d '{
+    "style": "cloyola_blue",
+}'
+```
+
 ---
 
 ### Step 3: Apply for Multiple Applications (Frontend → Backend → Skyvern)
