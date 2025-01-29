@@ -106,7 +106,7 @@ async def get_application_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch application data: {str(e)}")
 
-# Unused for MVP
+# Useful for modifying the style (see README)
 @router.put(
     "/modify_application/{application_id}",
     summary="Modify specific fields of an application",
