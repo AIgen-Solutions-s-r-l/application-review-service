@@ -9,12 +9,15 @@ class CareerDocsData(BaseModel):
     """
     resume_optimized: Optional[dict[str, Any]] = None
     cover_letter: Optional[dict[str, Any]] = None
+
 class JobResponse(JobData):
     style: Optional[str] = None
     sent: Optional[bool] = None
     gen_cv: Optional[bool] = None
+
 class ApplyContent(BaseModel):
     jobs: Dict[str, JobResponse]
+    
 class DetailedJobData(CareerDocsData):
     job_info: JobData
     style: Optional[str] = None
