@@ -10,7 +10,7 @@ class JobData(BaseModel):
     portal: Optional[str] = Field(None, description="The portal where the job was found.")
     title: Optional[str] = Field(None, description="The title of the job.")
     workplace_type: Optional[str] = Field(None, description="The workplace type, e.g., onsite, remote, or hybrid.")
-    posted_date: Optional[datetime] = Field(None, description="The date the job was posted.")
+    posted_date: Optional[str] = Field(None, description="The date the job was posted.")
     job_state: Optional[str] = Field(None, description="The state or status of the job.")
     description: Optional[str] = Field(None, description="A detailed description of the job.")
     apply_link: Optional[str] = Field(None, description="The link to apply for the job.")
