@@ -7,7 +7,6 @@ class JobData(BaseModel):
     Model for job details in a response.
     """
     id: int = Field(None, description="The unique ID of the job record.")
-    job_id: int = Field(None, description="The ID of the job.")
     portal: Optional[str] = Field(None, description="The portal where the job was found.")
     title: Optional[str] = Field(None, description="The title of the job.")
     workplace_type: Optional[str] = Field(None, description="The workplace type, e.g., onsite, remote, or hybrid.")
