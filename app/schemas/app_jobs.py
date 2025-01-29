@@ -13,8 +13,11 @@ class CareerDocsData(BaseModel):
     resume_optimized: Optional[dict[str, Any]] = None
     cover_letter: Optional[dict[str, Any]] = None
 
-class DetailedJobData(JobData, CareerDocsData): #python's got double inheritance, yaaay
-    pass
+class DetailedJobData(CareerDocsData): #python's got double inheritance, yaaay
+    job_info: JobData
+    style: Optional[str] = None
+    sent: Optional[bool] = None
+    gen_cv: Optional[bool] = None
 
 class CareerDocsResponse(BaseModel):
     """
