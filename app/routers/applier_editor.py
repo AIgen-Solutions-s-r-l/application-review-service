@@ -4,10 +4,9 @@ from typing import Any, List, Dict
 from app.core.rabbitmq_client import rabbit_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
-from app.models.job import JobData
 from app.models.resume import Resume
 from app.core.rabbitmq_client import AsyncRabbitMQClient
-from app.schemas.app_jobs import ApplyContent, DetailedJobData
+from app.schemas.app_jobs import ApplyContent, DetailedJobData, JobResponse
 
 from app.services.generic_publisher import generic_publisher
 
@@ -21,7 +20,7 @@ def get_rabbitmq_client() -> AsyncRabbitMQClient:
     "/apply_content",
     summary="Retrieve career documents for the authenticated user",
     description="Fetch all career document responses associated with the user_id in the JWT, excluding resume_optimized and cover_letter",
-    response_model=ApplyContent,  # Use our new Pydantic model here
+    response_model=ApplyContent,
 )
 async def get_career_docs(
     current_user=Depends(get_current_user),
@@ -49,7 +48,7 @@ async def get_career_docs(
                 app_data.pop("resume_optimized", None)
                 app_data.pop("cover_letter", None)
 
-                jobs_dict[app_id] = JobData(**app_data)
+                jobs_dict[app_id] = JobResponse(**app_data)
 
         return ApplyContent(jobs=jobs_dict)
 
@@ -62,7 +61,6 @@ async def get_career_docs(
 @router.get(
     "/apply_content/{application_id}",
     summary="Retrieve specific application data for the authenticated user",
-    description="Fetch the specific career document response associated with the given application ID.",
     response_model=DetailedJobData,
 )
 async def get_application_data(
@@ -70,43 +68,52 @@ async def get_application_data(
     current_user=Depends(get_current_user),
     mongo_client=Depends(get_mongo_client)
 ):
-    """
-    Retrieve specific application data for the authenticated user.
-
-    Args:
-        application_id: The unique ID of the application to fetch.
-        current_user: The authenticated user's ID obtained from the JWT.
-        mongo_client: MongoDB client instance.
-
-    Returns:
-        dict: The data for the specific application ID.
-
-    Raises:
-        HTTPException: If the application ID is not found or a database error occurs.
-    """
-    user_id = current_user  # Assuming `get_current_user` directly returns the user_id
+    user_id = current_user  # or however get_current_user is returning
 
     try:
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
-        # Fetch the document for the user with the specific application ID in the `content`
         document = await collection.find_one(
             {"user_id": user_id, f"content.{application_id}": {"$exists": True}},
             {"_id": 0, f"content.{application_id}": 1}
         )
-
         if not document:
-            raise HTTPException(status_code=404, detail=f"No data found for application ID: {application_id} with user ID: {user_id}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"No data found for application ID: {application_id} with user ID: {user_id}"
+            )
 
-        application_data = document.get("content", {}).get(application_id, {})
+        application_data = document["content"][application_id]
 
-        return DetailedJobData(**application_data)
+        transformed_data = {
+            "resume_optimized": application_data.get("resume_optimized"),
+            "cover_letter": application_data.get("cover_letter"),
+
+            "job_info": {
+                "id": application_data.get("id"),
+                "portal": application_data.get("portal"),
+                "title": application_data.get("title"),
+                "workplace_type": application_data.get("workplace_type"),
+                "posted_date": application_data.get("posted_date"),
+                "job_state": application_data.get("job_state"),
+                "description": application_data.get("description"),
+                "apply_link": application_data.get("apply_link"),
+                "company_name": application_data.get("company_name"),
+                "location": application_data.get("location"),
+            },
+            "style": application_data.get("style"),
+            "sent": application_data.get("sent"),
+            "gen_cv": application_data.get("gen_cv"),
+        }
+
+        # Now parse into your Pydantic model (will also validate fields):
+        return DetailedJobData(**transformed_data)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch application data: {str(e)}")
 
-# Unused for MVP
+# Useful for modifying the style (see README)
 @router.put(
     "/modify_application/{application_id}",
     summary="Modify specific fields of an application",
