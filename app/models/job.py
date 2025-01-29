@@ -16,6 +16,10 @@ class JobData(BaseModel):
     apply_link: Optional[str] = Field(None, description="The link to apply for the job.")
     company_name: Optional[str] = Field(None, description="The name of the company offering the job.")
     location: Optional[str] = Field(None, description="The location of the job.")
-
+    short_description: Optional[str] = Field(None, description="A short description of the job.")
+    field: Optional[str] = Field(None, description="The field or industry of the job.")
+    company_logo: Optional[str] = Field(None, description="The URL of the company logo.")
+    experience: Optional[str] = Field(None, description="The required experience for the job.")
+    skills_required: Optional[list[str]] = Field(None, description="The required skills for the job.")
     class Config:
         from_attributes = True
