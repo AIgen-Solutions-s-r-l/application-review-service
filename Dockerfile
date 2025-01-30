@@ -15,8 +15,7 @@ WORKDIR /app
 # Configure poetry to not create virtual environment (we're in a container)
 RUN poetry config virtualenvs.create false
 # Install dependencies
-RUN poetry install --no-root --only main
-
+RUN poetry install --no-root --with test
 COPY ./app /app/app
 
 # Set environment variables
