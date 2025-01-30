@@ -26,7 +26,7 @@ async def get_career_docs(
     current_user=Depends(get_current_user),
     mongo_client=Depends(get_mongo_client),
 ):
-    user_id = current_user  # or however you get the user ID
+    user_id = current_user
 
     try:
         db = mongo_client.get_database("resumes")
