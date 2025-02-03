@@ -163,5 +163,5 @@ class RedisClient:
                 logger.error(f"Error closing Redis connection: {e}")
 
 
-redis_client = RedisClient(host=settings.redis_host, port=settings.redis_port, db=0)
+redis_client = RedisClient(host=settings.redis_host, port=settings.redis_port, db=settings.redis_db)
 redis_client.connect()
