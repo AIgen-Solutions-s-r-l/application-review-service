@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     mongodb: str = os.getenv("MONGODB", "mongodb://localhost:27017")
 
     # Redis settings
-    redis_port: int = 6379
+    redis_port: int = os.getenv("REDIS_PORT", "6379")
+    redis_host: str = os.getenv("REDIS_HOST", "localhost")
 
     # RabbitMQ settings
     rabbitmq_url: str = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
