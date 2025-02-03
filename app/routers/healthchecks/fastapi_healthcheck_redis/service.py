@@ -18,12 +18,14 @@ class HealthCheckRedis(HealthCheckBase, HealthCheckInterface):
         host: str,
         port: int,
         db: int,
+        password: str,
         alias: str,
         tags: Optional[List[str]] = None,
     ) -> None:
         self._host = host
         self._port = port
         self._db = db
+        self._password = password
         self._alias = alias
         self._tags = tags
 
@@ -31,7 +33,7 @@ class HealthCheckRedis(HealthCheckBase, HealthCheckInterface):
         res: HealthCheckStatusEnum = HealthCheckStatusEnum.UNHEALTHY
         try:
             connection = redis.Redis(
-                host=self._host, port=self._port, db=self._db)
+                host=self._host, port=self._port, db=self._db, password=self._password)
             if connection.ping():
                 res = HealthCheckStatusEnum.HEALTHY
         except Exception as e:
