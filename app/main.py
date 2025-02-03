@@ -86,3 +86,5 @@ app.router.lifespan_context = lifespan
 
 # include the router
 app.include_router(applier_editor_router)
+from app.routers.healthcheck_router import router as healthcheck_router
+app.include_router(healthcheck_router)
