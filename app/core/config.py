@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     mongodb: str = os.getenv("MONGODB", "mongodb://localhost:27017")
 
     # Redis settings
+
     redis_host: str = os.getenv("REDIS_HOST", "localhost")
     redis_port: int = os.getenv("REDIS_PORT", 6379)
     redis_db: int = os.getenv("REDIS_DB", 0)
