@@ -3,9 +3,8 @@ import bcrypt
 from datetime import datetime, timedelta, timezone
 from jose import jwt
 
-from app.core.config import Settings
+from app.core.config import settings
 
-settings = Settings()
 
 def get_password_hash(password: str) -> str:
     """
