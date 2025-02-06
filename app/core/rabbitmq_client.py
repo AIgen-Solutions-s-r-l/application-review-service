@@ -95,7 +95,7 @@ class AsyncRabbitMQClient:
         try:
             queue = await self.channel.declare_queue(queue_name, passive=True)
             return queue.declaration_result.message_count
-        except aio_pika.exceptions.QueueNotFoundEntity as e:
+        except Exception as e:
             logger.warning(f"Queue '{queue_name}' does not exist: {e}")
             return 0  # Non-existent queue is an empty queue
 

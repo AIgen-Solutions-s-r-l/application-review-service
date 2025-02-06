@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     redis_host: str = os.getenv("REDIS_HOST", "localhost")
     redis_port: int = os.getenv("REDIS_PORT", 6379)
     redis_db: int = os.getenv("REDIS_DB", 0)
+    redis_password: str = os.getenv("REDIS_PASSWORD", "")
 
     # RabbitMQ settings
     rabbitmq_url: str = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")

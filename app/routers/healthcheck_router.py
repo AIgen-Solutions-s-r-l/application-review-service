@@ -38,6 +38,7 @@ async def health_check():
             host=settings.redis_host,
             port=settings.redis_port,
             db=settings.redis_db,
+            password=settings.redis_password,
             alias='redis',
             tags=('redis', 'cache')
         )

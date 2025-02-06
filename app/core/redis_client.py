@@ -34,7 +34,7 @@ class RedisClient:
         connection (Optional[redis.Redis]): The Redis connection object.
     """
 
-    def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0) -> None:
+    def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0, password: str = "") -> None:
         """
         Initializes the RedisClient with the specified host, port, and database.
 
@@ -46,6 +46,7 @@ class RedisClient:
         self.host = host
         self.port = port
         self.db = db
+        self.password = password
         self.connection: Optional[redis.Redis] = None
 
     def connect(self) -> None:
@@ -56,7 +57,7 @@ class RedisClient:
         """
         try:
             self.connection = redis.Redis(
-                host=self.host, port=self.port, db=self.db)
+                host=self.host, port=self.port, db=self.db, password=self.password)
             # Test the connection
             self.connection.ping()
             logger.info("Connected to Redis successfully.")
@@ -163,5 +164,5 @@ class RedisClient:
                 logger.error(f"Error closing Redis connection: {e}")
 
 
-redis_client = RedisClient(host='localhost', port=settings.redis_port, db=0)
+redis_client = RedisClient(host=settings.redis_host, port=settings.redis_port, db=settings.redis_db, password=settings.redis_password)
 redis_client.connect()
