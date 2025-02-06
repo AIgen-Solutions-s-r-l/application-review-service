@@ -1,10 +1,9 @@
 # app/core/mongodb.py
 
 from motor.motor_asyncio import AsyncIOMotorClient
-from app.core.config import Settings
+from app.core.config import settings
 
 # Load MongoDB settings
-settings = Settings()
 MONGO_DETAILS = settings.mongodb
 
 # Create the MongoDB client
