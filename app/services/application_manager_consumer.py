@@ -1,4 +1,3 @@
-
 from app.services.base_consumer import BaseConsumer
 from app.core.config import settings
 from app.services.career_docs_publisher import career_docs_publisher
@@ -14,6 +13,5 @@ class ApplicationManagerConsumer(BaseConsumer):
     
     async def process_message(self, _):
         await career_docs_publisher.refill_queue()
-
 
 application_manager_consumer = ApplicationManagerConsumer()

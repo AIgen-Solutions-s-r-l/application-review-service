@@ -1,7 +1,7 @@
 import json
 import aio_pika
 import asyncio
-from loguru import logger
+from app.log.logging import logger
 from typing import Callable, Optional
 from app.core.config import settings
 
@@ -25,11 +25,18 @@ class AsyncRabbitMQClient:
             try:
                 self.connection = await aio_pika.connect_robust(self.rabbitmq_url)
                 self.channel = await self.connection.channel()
-                logger.info("RabbitMQ connection established")
+                logger.info(
+                    "RabbitMQ connection established",
+                    event_type="rabbitmq_connection_established"
+                )
                 return
             except Exception as e:
                 retries += 1
-                logger.error(f"Failed to connect to RabbitMQ (attempt {retries}/{max_retries}): {e}")
+                logger.error(
+                    "Failed to connect to RabbitMQ: {error}",
+                    error=str(e),
+                    event_type="rabbitmq_connection_failed"
+                )
                 if retries < max_retries:
                     await asyncio.sleep(retry_delay)
                 else:
@@ -40,10 +47,22 @@ class AsyncRabbitMQClient:
         await self.connect()
         try:
             queue = await self.channel.declare_queue(queue_name, durable=durable)
-            logger.info(f"Queue '{queue_name}' ensured (durability={durable})")
+            logger.info(
+                "Queue {queue_name} ensured (durability={durable})",
+                queue_name=queue_name,
+                durable=durable,
+                event_type="queue_ensured"
+            )
             return queue
         except Exception as e:
-            logger.error(f"Failed to ensure queue '{queue_name}': {e}")
+            logger.exception(
+                "Failed to ensure queue {queue_name}: {error}",
+                queue_name=queue_name,
+                error=str(e),
+                event_type="queue_ensure_failed",
+                error_type=type(e).__name__,
+                error_details=str(e)
+            )
             raise
 
     async def publish_message(self, queue_name: str, message: dict, persistent: bool = False) -> None:
@@ -59,9 +78,19 @@ class AsyncRabbitMQClient:
                 ),
                 routing_key=queue_name,
             )
-            logger.info(f"Message published to queue '{queue_name}': {message}")
+            logger.info(
+                "Message published to queue {queue_name}: {message}",
+                queue_name=queue_name,
+                message=message,
+                event_type="message_published"
+            )
         except Exception as e:
-            logger.error(f"Failed to publish message to queue '{queue_name}': {e}")
+            logger.exception(
+                "Failed to publish message to queue {queue_name}: {error}",
+                queue_name=queue_name,
+                error=str(e),
+                event_type="message_publish_failed"
+            )
             raise
 
     async def consume_messages(self, queue_name: str, callback: Callable, auto_ack: bool = False) -> None:
@@ -77,26 +106,39 @@ class AsyncRabbitMQClient:
                             if auto_ack:
                                 await message.ack()
                         except Exception as callback_error:
-                            logger.error(f"Error in callback for message from queue '{queue_name}': {callback_error}")
+                            logger.error("Error in callback for message from queue in iterator", event_type="callback_error")
             except Exception as e:
-                logger.error(f"Error consuming messages from queue '{queue_name}': {e}")
-                await asyncio.sleep(5)  # Wait before reconnecting
+                logger.info(
+                    "Error consuming messages from queue {queue_name}: {error}",
+                    queue_name=queue_name,
+                    error=str(e)
+                )
+                await asyncio.sleep(5)
 
     async def close(self) -> None:
         """Closes the RabbitMQ connection."""
         if self.connection and not self.connection.is_closed:
             try:
                 await self.connection.close()
-                logger.info("RabbitMQ connection closed")
+                logger.info(
+                    "RabbitMQ connection closed",
+                    event_type="rabbitmq_connection_closed"
+                )
             except Exception as e:
-                logger.error(f"Error while closing RabbitMQ connection: {e}")
+                logger.exception(
+                    "Error while closing RabbitMQ connection: {error}",
+                    error=str(e),
+                    event_type="rabbitmq_connection_close_error",
+                    error_type=type(e).__name__,
+                    error_details=str(e)
+                )
 
     async def get_queue_size(self, queue_name: str) -> int:
         try:
             queue = await self.channel.declare_queue(queue_name, passive=True)
             return queue.declaration_result.message_count
         except Exception as e:
-            logger.warning(f"Queue '{queue_name}' does not exist: {e}")
+            logger.info("Queue {queue_name} does not exist: {e}", queue_name=queue_name, e=str(e), event_type="queue_not_found")
             return 0  # Non-existent queue is an empty queue
 
 rabbit_client = AsyncRabbitMQClient(rabbitmq_url=settings.rabbitmq_url)

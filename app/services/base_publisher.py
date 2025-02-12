@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from app.core.rabbitmq_client import rabbit_client
 
-
 class BasePublisher(ABC):
     def __init__(self):
         self.rabbitmq_client = rabbit_client

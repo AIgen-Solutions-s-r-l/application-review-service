@@ -159,7 +159,7 @@ async def modify_application_content(
         )
 
         if not existing_document:
-            raise HTTPException(status_code=404, detail=f"Application ID '{application_id}' not found.")
+            raise HTTPException(status_code=404, detail=f"Application ID {application_id} not found.")
 
         #for field, value in updates.items():
             #updates[field] = ensure_dict(value)
@@ -172,9 +172,9 @@ async def modify_application_content(
         )
 
         if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail=f"Failed to update application ID '{application_id}'.")
+            raise HTTPException(status_code=404, detail=f"Failed to update application ID {application_id}.")
 
-        return {"message": f"Application ID '{application_id}' updated successfully."}
+        return {"message": f"Application ID {application_id} updated successfully."}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to modify application: {str(e)}")
@@ -237,7 +237,7 @@ async def replace_resume_optimized(
         if not existing_document:
             raise HTTPException(
                 status_code=404,
-                detail=f"Application ID '{application_id}' not found or missing 'resume_optimized' section."
+                detail=f"Application ID {application_id} not found or missing 'resume_optimized' section."
             )
 
         # Serialize the Resume model to a dictionary
@@ -250,9 +250,9 @@ async def replace_resume_optimized(
         )
 
         if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail=f"Failed to update 'resume_optimized' for application '{application_id}'.")
+            raise HTTPException(status_code=404, detail=f"Failed to update 'resume_optimized' for application {application_id}.")
 
-        return {"message": f"'resume_optimized' for application ID '{application_id}' replaced successfully."}
+        return {"message": f"'resume_optimized' for application ID {application_id} replaced successfully."}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -298,7 +298,7 @@ async def replace_cover_letter(
         if not existing_document:
             raise HTTPException(
                 status_code=404,
-                detail=f"Application ID '{application_id}' not found or missing 'cover_letter' section."
+                detail=f"Application ID {application_id} not found or missing 'cover_letter' section."
             )
 
         # Replace the entire 'cover_letter' content
@@ -308,9 +308,9 @@ async def replace_cover_letter(
         )
 
         if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail=f"Failed to update 'cover_letter' for application '{application_id}'.")
+            raise HTTPException(status_code=404, detail=f"Failed to update 'cover_letter' for application {application_id}.")
 
-        return {"message": f"'cover_letter' for application ID '{application_id}' replaced successfully."}
+        return {"message": f"'cover_letter' for application ID {application_id} replaced successfully."}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

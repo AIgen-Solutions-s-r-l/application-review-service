@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from aio_pika import IncomingMessage
 from app.core.rabbitmq_client import rabbit_client
-
+from app.log.logging import logger
 
 class BaseConsumer(ABC):
     def __init__(self):
@@ -31,7 +31,12 @@ class BaseConsumer(ABC):
                 data = json.loads(message.body.decode())
                 await self.process_message(data)
             except Exception as e:
-                print(f"Failed to process message: {e}")
+                logger.exception(
+                    f"Failed to process message: {e}",
+                    event_type="consumer.message.process.error",
+                    error_type=type(e).__name__,
+                    error_details=str(e),
+                )
 
     async def start(self):
         """Start the applier service."""
