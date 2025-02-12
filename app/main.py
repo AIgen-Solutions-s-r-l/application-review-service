@@ -1,4 +1,4 @@
-import logging
+from app.log.logging import logger
 from contextlib import asynccontextmanager
 import asyncio
 from fastapi import FastAPI
@@ -10,13 +10,6 @@ from app.services.career_docs_consumer import career_docs_consumer
 from app.services.application_manager_consumer import application_manager_consumer
 from app.services.timed_queue_refiller import timed_queue_refiller
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
 # Initialize FastAPI app
 app = FastAPI()
 
@@ -26,13 +19,13 @@ mongo_client = AsyncIOMotorClient(settings.mongodb)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle management for app resources."""
-    logger.info("Starting application lifespan...")
+    logger.info("Starting application lifespan...", event_type="lifespan.start")
     
     try:
         await rabbit_client.connect()
-        logger.info("Connected to RabbitMQ")
+        logger.info("Connected to RabbitMQ", event_type="lifespan.rabbitmq.connect")
     except Exception as e:
-        logger.error(f"Failed to connect to RabbitMQ: {e}")
+        logger.error(f"Failed to connect to RabbitMQ: {e}", event_type="lifespan.rabbitmq.connect.error")
         raise
 
     # Start background tasks
@@ -41,11 +34,15 @@ async def lifespan(app: FastAPI):
         career_docs_response_task = asyncio.create_task(career_docs_consumer.start())
         application_manager_notification_task = asyncio.create_task(application_manager_consumer.start())
         timed_queue_refiller_task = asyncio.create_task(timed_queue_refiller.start())
-        logger.info("Job consumer task started")
-        logger.info("Career docs response consumer task started")
-        logger.info("Timed queue refiller task started")
+        logger.info("Job consumer task started", event_type="lifespan.job_consumer.start")
+        logger.info("Career docs response consumer task started", event_type="lifespan.career_docs_response.start")
+        logger.info("Timed queue refiller task started", event_type="lifespan.timed_queue_refiller.start")
     except Exception as e:
-        logger.error(f"Failed to start background tasks: {e}")
+        logger.exception(
+            f"Failed to start background tasks: {e}",
+            event_type="lifespan.background_tasks.start.error",
+            error_type=type(e).__name__,
+            error_details=str(e))
         raise
 
     try:
@@ -62,23 +59,35 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             logger.info("Background tasks cancelled")
         except Exception as e:
-            logger.error(f"Error while stopping background tasks: {e}")
+            logger.exception(
+                f"Error while stopping background tasks: {e}",
+                event_type="lifespan.background_tasks.stop.error",
+                error_type=type(e).__name__,
+                error_details=str(e))
 
         # Close RabbitMQ client
         try:
             await rabbit_client.close()
-            logger.info("RabbitMQ client closed")
+            logger.info("RabbitMQ client closed", event_type="lifespan.rabbitmq.close")
         except Exception as e:
-            logger.error(f"Error while closing RabbitMQ client: {e}")
+            logger.exception(
+                f"Error while stopping background tasks: {e}",
+                event_type="lifespan.background_tasks.stop.error",
+                error_type=type(e).__name__,
+                error_details=str(e))
 
         # Close MongoDB client
         try:
             mongo_client.close()
-            logger.info("MongoDB client closed")
+            logger.info("MongoDB client closed", event_type="lifespan.mongodb.close")
         except Exception as e:
-            logger.error(f"Error while closing MongoDB client: {e}")
+            logger.exception(
+                f"Error while closing MongoDB client: {e}",
+                event_type="lifespan.mongodb.close.error",
+                error_type=type(e).__name__,
+                error_details=str(e))
 
-    logger.info("Application lifespan ended")
+    logger.info("Application lifespan ended", event_type="lifespan.end")
 
 
 # Assign the lifespan function to the app

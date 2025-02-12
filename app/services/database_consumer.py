@@ -1,4 +1,4 @@
-from loguru import logger
+from app.log.logging import logger
 import json
 
 from pydantic import ValidationError
@@ -16,7 +16,7 @@ class DatabaseConsumer:
         Raises:
             DatabaseOperationError: If there's an error with MongoDB.
         """
-        logger.info("Connecting to MongoDB for fetching...")
+        logger.info("Connecting to MongoDB for fetching...", event_type="database_consumer")
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("jobs_to_apply_per_user")
 
@@ -25,7 +25,7 @@ class DatabaseConsumer:
             user_applications = await collection.find_one({"sent": False})
 
             if user_applications is None:
-                logger.info(f"All jobs have been processed.")
+                logger.info(f"All jobs have been processed.", event_type="database_consumer")
                 return None
 
             await collection.update_one(
@@ -50,7 +50,7 @@ class DatabaseConsumer:
                 return apply_info
 
             except ValidationError:
-                logger.warning("Invalid document structure, skipping.")
+                logger.error("Invalid document structure, skipping.", event_type="database_consumer")
                 continue
             
 

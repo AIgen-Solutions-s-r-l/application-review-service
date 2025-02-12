@@ -1,6 +1,6 @@
 import json
 from bson import ObjectId
-from loguru import logger
+from app.log.logging import logger
 import uuid
 from app.core.config import settings
 from app.core.exceptions import JobApplicationError
@@ -39,7 +39,12 @@ class CareerDocsPublisher(BasePublisher):
                 if self.jobs_redis_client.get(unique_uuid) is None:
                     return unique_uuid
             except Exception as e:
-                logger.error(f"Failed to check for existing UUID: {str(e)}")
+                logger.exception(
+                    "Failed to check for existing UUID",
+                    event_type="generate_unique_uuid",
+                    error_type=type(e).__name__,
+                    error_details=str(e)
+                )
                 raise JobApplicationError("Failed to generate a unique UUID")
             
     
@@ -57,7 +62,7 @@ class CareerDocsPublisher(BasePublisher):
         """
 
         if not self.jobs_redis_client.is_connected():
-            logger.error("One or more Redis clients are not connected")
+            logger.error("One or more Redis clients are not connected", event_type="publish_applications")
             raise JobApplicationError("Redis client is not connected")
 
         correlation_ids = []
@@ -74,11 +79,11 @@ class CareerDocsPublisher(BasePublisher):
                 success = self.jobs_redis_client.set(correlation_id, json.dumps(redis_value))
 
                 if not success:
-                    logger.error(f"Failed to store correlation ID '{correlation_id}' in mapping")
+                    logger.error(f"Failed to store correlation ID {correlation_id} in mapping", event_type="publish_applications")
                     raise JobApplicationError("Failed to store correlation ID in mapping")
                 
             except (TypeError, ValueError) as e:
-                logger.error(f"Failed to serialize data for correlation ID '{correlation_id}': {str(e)}")
+                logger.error(f"Failed to serialize data for correlation ID {correlation_id}", event_type="publish_applications")
                 raise JobApplicationError("Failed to serialize data for correlation ID")
             
         cv_id = jobsToApplyInfo.cv_id
@@ -89,18 +94,18 @@ class CareerDocsPublisher(BasePublisher):
                     {"$push": {"app_ids": {"$each": correlation_ids}}}
                 )
                 if update_result.modified_count == 0:
-                    logger.warning(f"No document found with _id {cv_id} in pdf_resumes or nothing was updated.")
+                    logger.info(f"No document found with _id {cv_id} in pdf_resumes or nothing was updated.", event_type="publish_applications")
             except Exception as e:
-                logger.error(f"Failed to update 'app_ids' for cv_id '{cv_id}': {str(e)}")
+                logger.error(f"Failed to update 'app_ids' for cv_id {cv_id}", event_type="publish_applications")
                 raise JobApplicationError("Failed to update 'app_ids' in pdf_resumes collection")
 
         message = {"user_id": jobsToApplyInfo.user_id, "jobs": jobsToApplyInfo.jobs, "mongo_id": str(jobsToApplyInfo.mongo_id)}
         try:
             await self.publish(message, True)
 
-            logger.info(f"Notification sent to career_docs for user {jobsToApplyInfo.user_id}")
+            logger.info(f"Notification sent to career_docs for user {jobsToApplyInfo.user_id}", event_type="publish_applications")
         except Exception as e:
-            logger.error(f"Failed to send notification to career_docs for user {jobsToApplyInfo.user_id}: {str(e)}")
+            logger.error(f"Failed to send notification to career_docs for user {jobsToApplyInfo.user_id}", event_type="publish_applications")
             raise JobApplicationError(f"Failed to notify career_docs for user {jobsToApplyInfo.user_id}")
         
     async def refill_queue(self):

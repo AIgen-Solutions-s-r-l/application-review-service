@@ -1,5 +1,5 @@
 import json
-from loguru import logger
+from app.log.logging import logger
 from app.core.exceptions import DatabaseOperationError, InvalidRequestError
 from app.core.mongo import get_mongo_client
 from app.core.redis_client import redis_client
@@ -41,8 +41,8 @@ class CareerDocsConsumer(BaseConsumer):
             original_data_json: str | None = self.jobs_redis_client.get(correlation_id) 
 
             if original_data_json is None: 
-                logger.warning(f"Correlation ID '{correlation_id}' not found in Redis mapping")
-                raise InvalidRequestError(f"Invalid correlation ID '{correlation_id}' in response from career_docs")
+                logger.info(f"Correlation ID {correlation_id} not found in Redis mapping", event_type="REDIS_CORRELATION_ID_NOT_FOUND")
+                raise InvalidRequestError(f"Invalid correlation ID {correlation_id} in response from career_docs")
 
             original_data: dict = json.loads(original_data_json)
 
@@ -88,24 +88,23 @@ class CareerDocsConsumer(BaseConsumer):
             result = await collection.update_one(filter_query, update_query, upsert=True)
 
             if result.upserted_id:
-                logger.info(f"Successfully inserted new document for user_id: {user_id}")
+                logger.info(f"Successfully inserted new document for user_id: {user_id}", event_type="MONGO_INSERT")
             elif result.modified_count > 0:
-                logger.info(f"Successfully updated existing document for user_id: {user_id}")
+                logger.info(f"Successfully updated existing document for user_id: {user_id}", event_type="MONGO_UPDATE")
             else:
-                logger.error(f"Failed to insert or update document for user_id: {user_id}")
+                logger.error(f"Failed to insert or update document for user_id: {user_id}", event_type="MONGO_UPDATE")
                 raise DatabaseOperationError("Failed to insert or update document in MongoDB")
         except Exception as e:
-            logger.error(f"Error occurred while storing career_docs response in MongoDB: {str(e)}")
+            logger.error(f"Error occurred while storing career_docs response in MongoDB", event_type="MONGO_ERROR")
             raise DatabaseOperationError("Error while storing career_docs response in MongoDB")
 
     async def _remove_processed_entry(self, mongo_id: str):
-        logger.info(f"removing processed entity with id: {mongo_id}")
+        logger.info(f"removing processed entity with id: {mongo_id}", event_type="MONGO_DELETE")
         await self.database_writer.clean_from_db(mongo_id)
 
     async def _restore_sent_status(self, mongo_id: str):
-        logger.warning(f"CareerDocs failed, restoring sent status for entity {mongo_id}")
+        logger.info(f"CareerDocs failed, restoring sent status for entity {mongo_id}", event_type="MONGO_RESTORE")
         await self.database_writer.restore_sent(mongo_id)
-
 
     async def process_message(self, message: dict):
         """

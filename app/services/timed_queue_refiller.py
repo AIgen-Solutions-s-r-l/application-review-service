@@ -1,7 +1,6 @@
 import asyncio
 from app.services.career_docs_publisher import career_docs_publisher
 
-
 class TimedQueueRefiller:
 
     WAIT_TIME: int = 10 * 60     # wait 10 minutes between each check

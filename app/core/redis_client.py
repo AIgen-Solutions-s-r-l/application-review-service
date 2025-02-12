@@ -16,12 +16,10 @@ Attributes:
     logger: The logger instance for this module
 """
 
-
 from typing import Optional
 import redis
-from loguru import logger
+from app.log.logging import logger
 from app.core.config import settings
-
 
 class RedisClient:
     """
@@ -60,9 +58,14 @@ class RedisClient:
                 host=self.host, port=self.port, db=self.db, password=self.password)
             # Test the connection
             self.connection.ping()
-            logger.info("Connected to Redis successfully.")
+            logger.info("Connected to Redis successfully.", event_type="REDIS_CONNECTION")
         except redis.ConnectionError as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+            logger.exception(
+                "Error connecting to Redis with error {error}", 
+                error=e, 
+                event_type="REDIS_CONNECTION", 
+                error_type=type(e).__name__,
+                error_details=str(e))
             self.connection = None
 
     def get(self, key: str) -> Optional[str]:
@@ -76,13 +79,13 @@ class RedisClient:
             Optional[str]: The value associated with the key, or None if not found or on error.
         """
         if not self.connection:
-            logger.error("No Redis connection available.")
+            logger.error("No Redis connection available.", event_type="REDIS_CONNECTION")
             return None
         try:
             value = self.connection.get(key)
             return value.decode('utf-8') if value else None
         except redis.RedisError as e:
-            logger.error(f"Error getting key {key} from Redis: {e}")
+            logger.error(f"Error getting key {key} from Redis: {e}", event_type="REDIS_OPERATION")
             return None
 
     def set(self, key: str, value: str) -> bool:
@@ -97,14 +100,14 @@ class RedisClient:
             bool: True if the operation was successful, False otherwise.
         """
         if not self.connection:
-            logger.error("No Redis connection available.")
+            logger.error("No Redis connection available.", event_type="REDIS_CONNECTION")
             return False
         try:
             self.connection.set(key, value)
-            logger.info(f"Key {key} set successfully.")
+            logger.info(f"Key {key} set successfully.", event_type="REDIS_OPERATION")
             return True
         except redis.RedisError as e:
-            logger.error(f"Error setting key {key} in Redis: {e}")
+            logger.error(f"Error setting key {key} in Redis: {e}", event_type="REDIS_OPERATION")
             return False
         
     def delete(self, key: str) -> bool:
@@ -118,18 +121,18 @@ class RedisClient:
             bool: True if the key was deleted, False otherwise.
         """
         if not self.connection:
-            logger.error("No Redis connection available.")
+            logger.error("No Redis connection available.", event_type="REDIS_CONNECTION")
             return False
         try:
             result = self.connection.delete(key)
             if result == 1:
-                logger.info(f"Key {key} deleted successfully.")
+                logger.info(f"Key {key} deleted successfully.", event_type="REDIS_OPERATION")
                 return True
             else:
-                logger.warning(f"Key {key} does not exist in Redis.")
+                logger.warning(f"Key {key} does not exist in Redis.", event_type="REDIS_OPERATION")
                 return False
         except redis.RedisError as e:
-            logger.error(f"Error deleting key {key} from Redis: {e}")
+            logger.error(f"Error deleting key {key} from Redis: {e}", event_type="REDIS_OPERATION")
             return False
         
     def is_connected(self) -> bool:
@@ -146,7 +149,7 @@ class RedisClient:
             self.connection.ping()
             return True
         except redis.RedisError as e:
-            logger.error(f"Redis connection lost: {e}")
+            logger.error(f"Redis connection lost: {e}", event_type="REDIS_CONNECTION")
             self.connection = None
             return False
 
@@ -159,9 +162,9 @@ class RedisClient:
         if self.connection:
             try:
                 self.connection.close()
-                logger.info("Redis connection closed.")
+                logger.info("Redis connection closed.", event_type="REDIS_CONNECTION")
             except redis.RedisError as e:
-                logger.error(f"Error closing Redis connection: {e}")
+                logger.error(f"Error closing Redis connection: {e}", event_type="REDIS_CONNECTION")
 
 
 redis_client = RedisClient(host=settings.redis_host, port=settings.redis_port, db=settings.redis_db, password=settings.redis_password)
