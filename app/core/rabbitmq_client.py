@@ -108,13 +108,10 @@ class AsyncRabbitMQClient:
                         except Exception as callback_error:
                             logger.error("Error in callback for message from queue in iterator", event_type="callback_error")
             except Exception as e:
-                logger.exception(
+                logger.info(
                     "Error consuming messages from queue {queue_name}: {error}",
                     queue_name=queue_name,
-                    error=str(e),
-                    event_type="message_consume_error",
-                    error_type=type(e).__name__,
-                    error_details=str(e)
+                    error=str(e)
                 )
                 await asyncio.sleep(5)
 
