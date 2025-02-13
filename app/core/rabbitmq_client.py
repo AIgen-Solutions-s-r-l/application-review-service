@@ -108,7 +108,7 @@ class AsyncRabbitMQClient:
                         except Exception as callback_error:
                             logger.error("Error in callback for message from queue in iterator", event_type="callback_error")
             except Exception as e:
-                logger.info(
+                logger.exception(
                     "Error consuming messages from queue {queue_name}: {error}",
                     queue_name=queue_name,
                     error=str(e)
