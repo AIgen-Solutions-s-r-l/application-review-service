@@ -37,5 +37,5 @@ class HealthCheckRedis(HealthCheckBase, HealthCheckInterface):
             if connection.ping():
                 res = HealthCheckStatusEnum.HEALTHY
         except Exception as e:
-            logger.error(f"Mongo health check failed: {e}")
+            logger.error(f"Redis health check failed: {e}")
         return res
