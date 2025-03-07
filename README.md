@@ -237,7 +237,6 @@ curl -X PUT "http://localhost:8010/update_application/resume_optimized/3c916dfc-
                {
                  "position": "Software Engineer",
                  "company": "Tech Innovations",
-                 "employment_period": "06/2020 - Present",
                  "location": "Italy",
                  "industry": "Technology",
                  "key_responsibilities": [

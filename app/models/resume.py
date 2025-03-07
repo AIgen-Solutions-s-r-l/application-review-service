@@ -40,13 +40,14 @@ class EducationDetail(BaseModel):
     final_evaluation_grade: Optional[str] = None
     start_date: Optional[int] = None
     year_of_completion: Optional[int] = None
-    exam: Optional[Dict[str, Union[float, int]]] = None
+    eexam: Optional[Union[List[Dict[str, Optional[str]]], Dict[str, Optional[str]]]] = None
 
 
 class ExperienceDetail(BaseModel):
     position: Optional[str] = None
     company: Optional[str] = None
-    employment_period: Optional[str] = None
+    employment_start_date: Optional[str] = None
+    employment_end_date: Optional[str] = None
     location: Optional[str] = None
     industry: Optional[str] = None
     key_responsibilities: Optional[List[str]] = None
