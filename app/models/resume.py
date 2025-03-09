@@ -38,8 +38,8 @@ class EducationDetail(BaseModel):
     institution: Optional[str] = None
     field_of_study: Optional[str] = None
     final_evaluation_grade: Optional[str] = None
-    start_date: Optional[int] = None
-    year_of_completion: Optional[int] = None
+    start_date: Optional[str] = None
+    year_of_completion: Optional[str] = None
     exam: Optional[Union[List[Dict[str, Optional[str]]], Dict[str, Optional[str]]]] = None
 
 
