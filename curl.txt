@@ -5,11 +5,11 @@ curl -X GET "http://localhost:8012/apply_content" -H "Authorization: Bearer eyJh
 
 curl -X GET "http://localhost:8012/apply_content/900d7249-310d-475d-8527-f06fd552cd3d" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM4MTYwNTU5fQ.ZrP_9VZaxSRaATy5LpAwlj56PzmtGD9pwXHCrBTPZVA"
 
-curl -X POST "http://localhost:8000/apply_selected" \
--H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJBQGV4YW1wbGUuY29tIiwiaWQiOjE0LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0MDkzNjc0Mn0.QCNMQULm5KZ5DTVoeBFJEWTZIJr0NpCcdWonDwBowQI" \
+curl -X POST "http://localhost:8019/apply_selected" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYW5hbmExQGV4YW1wbGUuY29tIiwiaWQiOjQ1LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0MTM4OTM4OH0.plOz6dQEDJATKTP6kkIDlrAhLRCTqq5hXc7Aiq7U8ho" \
 -H "Content-Type: application/json" \
 -d '[
-    "53bc6b1e-a727-451c-8198-ec3a12825656"
+    "bad6bd9e-d346-4a60-883b-8ef2134ccc24"
 ]'
 
 curl -X POST "http://localhost:8009/apply_all" \

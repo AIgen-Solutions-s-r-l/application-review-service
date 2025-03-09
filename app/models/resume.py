@@ -90,11 +90,11 @@ class SalaryExpectations(BaseModel):
 
 
 class SelfIdentification(BaseModel):
-    gender: Optional[str] = None
-    pronouns: Optional[str] = None
-    veteran: Optional[str] = None
-    disability: Optional[str] = None
-    ethnicity: Optional[str] = None
+    gender: Optional[str] = "Prefer not to say"
+    pronouns: Optional[str] = "Prefer not to say"
+    veteran: Optional[str] = "Prefer not to say"
+    disability: Optional[str] = "Prefer not to say"
+    ethnicity: Optional[str] = "Prefer not to say"
 
 
 class WorkPreferences(BaseModel):
