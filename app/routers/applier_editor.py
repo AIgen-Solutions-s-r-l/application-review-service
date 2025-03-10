@@ -246,7 +246,7 @@ async def replace_resume_optimized(
         # Replace the entire 'resume_optimized' content
         result = await collection.update_one(
             {"user_id": user_id},
-            {"$set": {f"content.{application_id}.resume_optimized": serialized_data}}
+            {"$set": {f"content.{application_id}.resume_optimized.resume": serialized_data}}
         )
 
         if result.matched_count == 0:
@@ -291,7 +291,7 @@ async def replace_cover_letter(
 
         # Check if this application exists for this user
         existing_document = await collection.find_one(
-            {"user_id": user_id, f"content.{application_id}.cover_letter": {"$exists": True}},
+            {"user_id": user_id, f"content.{application_id}.cover_letter.cover_letter": {"$exists": True}},
             {"_id": 0, f"content.{application_id}.cover_letter": 1}
         )
 
