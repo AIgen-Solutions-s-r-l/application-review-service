@@ -15,6 +15,18 @@ router = APIRouter()
 def get_rabbitmq_client() -> AsyncRabbitMQClient:
     return rabbit_client
 
+def filter_jobs_by_sent(content: dict, sent_value: bool) -> dict:
+    """
+    Filter the career document jobs based on the 'sent' value.
+    Removes 'resume_optimized' and 'cover_letter' fields before returning the JobResponse dict.
+    """
+    jobs_dict = {}
+    for app_id, app_data in content.items():
+        if isinstance(app_data, dict) and app_data.get("sent") is sent_value:
+            app_data.pop("resume_optimized", None)
+            app_data.pop("cover_letter", None)
+            jobs_dict[app_id] = JobResponse(**app_data)
+    return jobs_dict
 
 @router.get(
     "/apply_content",
@@ -34,21 +46,11 @@ async def get_career_docs(
 
         # Fetch the entire 'content' field for the user
         document = await collection.find_one({"user_id": user_id}, {"_id": 0, "content": 1})
-
         if not document:
             raise HTTPException(status_code=404, detail="No career documents found for the user.")
 
         content = document.get("content", {})
-
-        # We'll build a dict of app_id -> job_data
-        jobs_dict = {}
-
-        for app_id, app_data in content.items():
-            if isinstance(app_data, dict):
-                app_data.pop("resume_optimized", None)
-                app_data.pop("cover_letter", None)
-
-                jobs_dict[app_id] = JobResponse(**app_data)
+        jobs_dict = filter_jobs_by_sent(content, sent_value=False)
 
         return ApplyContent(jobs=jobs_dict)
 
@@ -56,6 +58,38 @@ async def get_career_docs(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch career documents: {str(e)}"
+        )
+
+@router.get(
+    "/pending_content",
+    summary="Retrieve pending career documents for the authenticated user",
+    description="Fetch all career document responses associated with the user_id in the JWT that have been sent (sent=true), excluding resume_optimized and cover_letter",
+    response_model=ApplyContent,
+)
+async def get_pending_docs(
+    current_user=Depends(get_current_user),
+    mongo_client=Depends(get_mongo_client),
+):
+    user_id = current_user
+
+    try:
+        db = mongo_client.get_database("resumes")
+        collection = db.get_collection("career_docs_responses")
+
+        # Fetch the entire 'content' field for the user
+        document = await collection.find_one({"user_id": user_id}, {"_id": 0, "content": 1})
+        if not document:
+            raise HTTPException(status_code=404, detail="No career documents found for the user.")
+
+        content = document.get("content", {})
+        jobs_dict = filter_jobs_by_sent(content, sent_value=True)
+
+        return ApplyContent(jobs=jobs_dict)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch pending career documents: {str(e)}"
         )
     
 @router.get(
