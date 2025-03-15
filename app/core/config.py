@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """
-    Configuration class for environment variables and service settings.
+    Configuration class for environment variables and service settings!!!.
     """
     # Service settings
     service_name: str = os.getenv("SERVICE_NAME", "applier_service")
