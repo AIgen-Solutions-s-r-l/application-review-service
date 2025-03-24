@@ -79,9 +79,8 @@ class AsyncRabbitMQClient:
                 routing_key=queue_name,
             )
             logger.info(
-                "Message published to queue {queue_name}: {message}",
+                "Message published to queue {queue_name}",
                 queue_name=queue_name,
-                message=message,
                 event_type="message_published"
             )
         except Exception as e:
