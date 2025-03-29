@@ -24,18 +24,14 @@ class PersonalInformation(BaseModel):
         return val
 
 
-class RelevantModule(BaseModel):
-    module: Optional[str] = None
-    grade: Optional[str] = None
-
-
-class ExamDetails(BaseModel):
-    relevant_modules: Optional[List[RelevantModule]] = None
-
+class Location(BaseModel):
+    country: Optional[str] = None
+    city: Optional[str] = None
 
 class EducationDetail(BaseModel):
     education_level: Optional[str] = None
     institution: Optional[str] = None
+    location: Optional[Location] = None
     field_of_study: Optional[str] = None
     final_evaluation_grade: Optional[str] = None
     start_date: Optional[Union[int, str]] = None
@@ -46,8 +42,9 @@ class EducationDetail(BaseModel):
 class ExperienceDetail(BaseModel):
     position: Optional[str] = None
     company: Optional[str] = None
-    employment_period: Optional[str] = None
-    location: Optional[str] = None
+    employment_start_date: Optional[str] = None
+    employment_end_date: Optional[str] = None
+    location: Optional[Location] = None
     industry: Optional[str] = None
     key_responsibilities: Optional[List[str]] = None
     skills_acquired: Optional[List[str]] = None
@@ -89,11 +86,11 @@ class SalaryExpectations(BaseModel):
 
 
 class SelfIdentification(BaseModel):
-    gender: Optional[str] = None
-    pronouns: Optional[str] = None
-    veteran: Optional[str] = None
-    disability: Optional[str] = None
-    ethnicity: Optional[str] = None
+    gender: Optional[str] = "Prefer not to say"
+    pronouns: Optional[str] = "Prefer not to say"
+    veteran: Optional[str] = "Prefer not to say"
+    disability: Optional[str] = "Prefer not to say"
+    ethnicity: Optional[str] = "Prefer not to say"
 
 
 class WorkPreferences(BaseModel):
