@@ -21,7 +21,7 @@ def process_for_skyvern(data):
     }
 
     # Return the filtered data in the same structure
-    return {"user_id": user_id, "content": filtered_content}
+    return {"user_id": user_id, "content": filtered_content} if filtered_content else None
 
 def process_for_providers(data):
     """
@@ -42,16 +42,16 @@ def process_for_providers(data):
     }
 
     # Return the filtered data in the same structure
-    return {"user_id": user_id, "content": filtered_content}
+    return {"user_id": user_id, "content": filtered_content} if filtered_content else None
 
 
 
 # Appliers configuration for modularity
 APPLIERS = {
-    'skyvern': {
-        'queue_name': 'skyvern_queue',
-        'process_function': process_for_skyvern
-    },
+    #'skyvern': {
+    #    'queue_name': 'skyvern_queue',
+    #    'process_function': process_for_skyvern
+    #},
     'providers': {
         'queue_name': 'providers_queue',
         'process_function': process_for_providers

@@ -10,7 +10,7 @@ class PersonalInformation(BaseModel):
     country: Optional[str] = None
     city: Optional[str] = None
     address: Optional[str] = None
-    zip_code: Optional[str] = Field(None, max_length=10)
+    zip_code: Optional[str] = None
     phone_prefix: Optional[str] = None
     phone: Optional[Union[str, int]] = None
     email: Optional[EmailStr] = None
@@ -34,8 +34,8 @@ class EducationDetail(BaseModel):
     location: Optional[Location] = None
     field_of_study: Optional[str] = None
     final_evaluation_grade: Optional[str] = None
-    start_date: Optional[int] = None
-    year_of_completion: Optional[int] = None
+    start_date: Optional[Union[int, str]] = None
+    year_of_completion: Optional[Union[int, str]] = None
     exam: Optional[Union[List[Dict[str, Optional[str]]], Dict[str, Optional[str]]]] = None
 
 
