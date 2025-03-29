@@ -23,11 +23,6 @@ class PersonalInformation(BaseModel):
             return str(val)
         return val
 
-
-class RelevantModule(BaseModel):
-    module: Optional[str] = None
-    grade: Optional[str] = None
-
 class EducationDetail(BaseModel):
     education_level: Optional[str] = None
     institution: Optional[str] = None
