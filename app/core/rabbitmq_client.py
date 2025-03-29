@@ -65,11 +65,11 @@ class AsyncRabbitMQClient:
             )
             raise
 
-    async def publish_message(self, queue_name: str, message: dict, persistent: bool = False) -> None:
+    async def publish_message(self, queue_name: str, message: dict, persistent: bool = True) -> None:
         """Publishes a message to the queue."""
         try:
             await self.connect()
-            await self.ensure_queue(queue_name, durable=False)
+            await self.ensure_queue(queue_name, durable=True)
             message_body = json.dumps(message).encode()
             await self.channel.default_exchange.publish(
                 aio_pika.Message(

@@ -11,7 +11,7 @@ class BasePublisher(ABC):
         """Return the RabbitMQ queue name."""
         pass
 
-    async def publish(self, message: dict, persistent: bool = False) -> None:
+    async def publish(self, message: dict, persistent: bool = True) -> None:
         """Publishes the message on the queue"""
         await self.rabbitmq_client.connect()
         await self.rabbitmq_client.publish_message(self.queue_name, message, persistent)
