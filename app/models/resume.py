@@ -23,9 +23,15 @@ class PersonalInformation(BaseModel):
             return str(val)
         return val
 
+
+class Location(BaseModel):
+    country: Optional[str] = None
+    city: Optional[str] = None
+
 class EducationDetail(BaseModel):
     education_level: Optional[str] = None
     institution: Optional[str] = None
+    location: Optional[Location] = None
     field_of_study: Optional[str] = None
     final_evaluation_grade: Optional[str] = None
     start_date: Optional[int] = None
@@ -38,7 +44,7 @@ class ExperienceDetail(BaseModel):
     company: Optional[str] = None
     employment_start_date: Optional[str] = None
     employment_end_date: Optional[str] = None
-    location: Optional[str] = None
+    location: Optional[Location] = None
     industry: Optional[str] = None
     key_responsibilities: Optional[List[str]] = None
     skills_acquired: Optional[List[str]] = None
