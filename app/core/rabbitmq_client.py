@@ -42,7 +42,7 @@ class AsyncRabbitMQClient:
                 else:
                     logger.error("Max retries reached. RabbitMQ connection could not be established.")
 
-    async def ensure_queue(self, queue_name: str, durable: bool = False) -> aio_pika.Queue:
+    async def ensure_queue(self, queue_name: str, durable: bool = True) -> aio_pika.Queue:
         """Ensures that a queue exists."""
         await self.connect()
         try:
@@ -97,7 +97,7 @@ class AsyncRabbitMQClient:
         while True:
             try:
                 await self.connect()
-                queue = await self.ensure_queue(queue_name, durable=False)
+                queue = await self.ensure_queue(queue_name, durable=True)
                 async with queue.iterator() as queue_iter:
                     async for message in queue_iter:
                         try:
