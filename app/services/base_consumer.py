@@ -26,17 +26,10 @@ class BaseConsumer(ABC):
 
     async def _message_handler(self, message: IncomingMessage):
         """Handle incoming RabbitMQ messages."""
-        async with message.process():
-            try:
-                data = json.loads(message.body.decode())
-                await self.process_message(data)
-            except Exception as e:
-                logger.exception(
-                    f"Failed to process message: {e}",
-                    event_type="consumer.message.process.error",
-                    error_type=type(e).__name__,
-                    error_details=str(e),
-                )
+        data = json.loads(message.body.decode())
+        await self.process_message(data)
+        await message.ack()
+        logger.info("Message acknowledged", event_type="rabbitmq")
 
     async def start(self):
         """Start the applier service."""

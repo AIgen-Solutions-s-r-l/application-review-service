@@ -92,7 +92,9 @@ class AsyncRabbitMQClient:
             )
             raise
 
-    async def consume_messages(self, queue_name: str, callback: Callable, auto_ack: bool = False) -> None:
+    async def consume_messages(
+        self, queue_name: str, callback: Callable, auto_ack: bool = False
+    ) -> None:
         """Consumes messages from the queue asynchronously."""
         while True:
             try:
@@ -104,16 +106,33 @@ class AsyncRabbitMQClient:
                             await callback(message)
                             if auto_ack:
                                 await message.ack()
-                        except Exception as callback_error:
-                            logger.error("Error in callback for message from queue in iterator", event_type="callback_error")
+                        except asyncio.CancelledError:
+                            logger.error(
+                                "Received CancelledError while processing message",
+                                event_type="callback_error",
+                            )
+                            await message.nack(requeue=True)
+                            logger.info(
+                                "Message rejected and requeued with queue status with message",
+                                event_type="message_rejected",
+                            )
+                            break
+                        except Exception as e:
+                            logger.exception(
+                                "Error processing message: {error}",
+                                error=str(e),
+                                event_type="callback_error",
+                            )
+                            await message.nack(requeue=False)
+            
             except Exception as e:
                 logger.exception(
                     "Error consuming messages from queue {queue_name}: {error}",
                     queue_name=queue_name,
-                    error=str(e)
+                    error=str(e),
                 )
-                await asyncio.sleep(5)
-
+                await asyncio.sleep(5)  # Wait before reconnecting
+                    
     async def close(self) -> None:
         """Closes the RabbitMQ connection."""
         if self.connection and not self.connection.is_closed:
