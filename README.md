@@ -261,16 +261,18 @@ curl -X PUT "http://localhost:8010/update_application/resume_optimized/3c916dfc-
                }
              ]
            },
-           "side_projects": [
-             {
-               "name": "Open Source",
-               "description": "Developed features for an open project improving its performance and documentation.",
-               "technologies": [
-                 "Python",
-                 "Flask"
-               ]
-             }
-           ],
+           "projects": {
+             "projects": [
+              {
+                "name": "Open Source",
+                "description": "Developed features for an open project improving its performance and documentation.",
+                "technologies": [
+                  "Python",
+                  "Flask"
+                ]
+              }
+            ],
+          },
            "achievements": {
              "achievements": [
                {
@@ -381,7 +383,7 @@ curl -X PUT "http://localhost:8008/modify_application/{application_id}" \
 -H "Content-Type: application/json" \
 -d '{
     "resume_optimized.resume.header.personal_information.country": "Germany",
-    "resume_optimized.resume.body.side_projects": [
+    "resume_optimized.resume.body.projects": [
         {
             "name": "Open Source Project",
             "description": "Developed features for an open project improving its performance and documentation.",
