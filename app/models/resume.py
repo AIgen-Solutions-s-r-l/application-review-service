@@ -135,7 +135,7 @@ class SideProject(BaseModel):
 class ResumeBody(BaseModel):
     education_details: Optional[Dict[str, List[EducationDetail]]] = None
     experience_details: Optional[Dict[str, List[ExperienceDetail]]] = None
-    projects: Optional[List[Project]] = None
+    projects: Optional[Dict[str, List[Projects]]] = None
     achievements: Optional[Dict[str, List[Achievement]]] = None
     certifications: Optional[Dict[str, List[Certification]]] = None
     additional_skills: Optional[AdditionalSkills] = None
