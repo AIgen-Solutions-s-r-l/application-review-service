@@ -1,3 +1,4 @@
+import datetime
 import json
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Any, List, Dict
@@ -374,10 +375,13 @@ async def process_career_docs(
 
         # Update `sent` field to True for all applications
         for app_id in document.keys():
-            if app_id != "user_id":  # Skip user_id
+            if app_id != "user_id":
                 await collection.update_one(
                     {"user_id": user_id},
-                    {"$set": {f"{app_id}.sent": True}}
+                    {"$set": {
+                        f"{app_id}.sent": True,
+                        f"{app_id}.timestamp": datetime.datetime.now(datetime.timezone.utc)
+                    }}
                 )
 
         return {"message": "Career documents processed successfully"}
@@ -447,7 +451,10 @@ async def process_selected_applications(
         for app_id in application_ids:
             await collection.update_one(
                 {"user_id": user_id, f"content.{app_id}": {"$exists": True}},
-                {"$set": {f"content.{app_id}.sent": True}}
+                {"$set": {
+                    f"content.{app_id}.sent": True,
+                    f"content.{app_id}.timestamp": datetime.datetime.now(datetime.timezone.utc)
+                }}
             )
 
         return {"message": "Selected applications processed successfully"}
