@@ -15,8 +15,14 @@ class JobResponse(JobData):
     sent: Optional[bool] = None
     gen_cv: Optional[bool] = None
 
+class PendingJobResponse(JobResponse):
+    timestamp: datetime = None
+
 class ApplyContent(BaseModel):
     jobs: Dict[str, JobResponse]
+
+class PendingContent(BaseModel):
+    jobs: Dict[str, PendingJobResponse]
     
 class DetailedJobData(CareerDocsData):
     job_info: JobData

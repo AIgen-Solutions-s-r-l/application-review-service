@@ -1,16 +1,16 @@
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "lorenzo", "password": "12345678"}'
 curl -X POST https://auth.neuraltrading.group/auth/login -H "Content-Type: application/json" -d '{"username": "johndoe", "password": "securepassword"}'
 
-curl -X GET "http://localhost:8019/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYW5hbmExQGV4YW1wbGUuY29tIiwiaWQiOjQ1LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0MTY0MjY5M30.eHlP9Ilsy77EdLTkvTjem4AziUlzPHbBxpE1cqNDXuY"
-curl -X GET "http://localhost:8019/pending_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYW5hbmExQGV4YW1wbGUuY29tIiwiaWQiOjQ1LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0MTY0MjY5M30.eHlP9Ilsy77EdLTkvTjem4AziUlzPHbBxpE1cqNDXuY"
+curl -X GET "http://localhost:8777/apply_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYW5hbmExQGV4YW1wbGUuY29tIiwiaWQiOjQ1LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0Mzk1OTI5N30.djtxZTlRC0uvK374ntUCjdrMsY5bKgTgM4ehojOXgHY"
+curl -X GET "http://localhost:8777/pending_content" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYW5hbmExQGV4YW1wbGUuY29tIiwiaWQiOjQ1LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0Mzk1OTI5N30.djtxZTlRC0uvK374ntUCjdrMsY5bKgTgM4ehojOXgHY"
 
 curl -X GET "http://localhost:8012/apply_content/900d7249-310d-475d-8527-f06fd552cd3d" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM4MTYwNTU5fQ.ZrP_9VZaxSRaATy5LpAwlj56PzmtGD9pwXHCrBTPZVA"
 
-curl -X POST "http://localhost:8021/apply_selected" \
--H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYW5hbmExQGV4YW1wbGUuY29tIiwiaWQiOjQ1LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0MzI4MjA5NX0.V7omgl8am3OHrwFGguJqLhYVV78fjOCMSd6NRcOOmrM" \
+curl -X POST "http://localhost:8777/apply_selected" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYW5hbmExQGV4YW1wbGUuY29tIiwiaWQiOjQ1LCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc0Mzk1OTI5N30.djtxZTlRC0uvK374ntUCjdrMsY5bKgTgM4ehojOXgHY" \
 -H "Content-Type: application/json" \
 -d '[
-    "b3c6ec8f-7c12-4c38-b4e0-fc4b3e44f803"
+    "b3788af0-cf60-4f83-be3d-9946d8d635b8"
 ]'
 
 curl -X POST "http://localhost:6666/apply_all" \
