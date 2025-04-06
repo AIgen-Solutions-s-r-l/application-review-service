@@ -7,7 +7,7 @@ from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
 from app.models.resume import Resume
 from app.core.rabbitmq_client import AsyncRabbitMQClient
-from app.schemas.app_jobs import ApplyContent, DetailedJobData, JobResponse
+from app.schemas.app_jobs import ApplyContent, DetailedJobData, JobResponse, PendingContent, PendingJobResponse
 
 from app.services.generic_publisher import generic_publisher
 
@@ -26,7 +26,7 @@ def filter_jobs_by_sent(content: dict, sent_value: bool) -> dict:
         if isinstance(app_data, dict) and app_data.get("sent") is sent_value:
             app_data.pop("resume_optimized", None)
             app_data.pop("cover_letter", None)
-            jobs_dict[app_id] = JobResponse(**app_data)
+            jobs_dict[app_id] = PendingJobResponse(**app_data)
     return jobs_dict
 
 @router.get(
@@ -65,7 +65,7 @@ async def get_career_docs(
     "/pending_content",
     summary="Retrieve pending career documents for the authenticated user",
     description="Fetch all career document responses associated with the user_id in the JWT that have been sent (sent=true), excluding resume_optimized and cover_letter",
-    response_model=ApplyContent,
+    response_model=PendingContent,
 )
 async def get_pending_docs(
     current_user=Depends(get_current_user),
@@ -85,7 +85,7 @@ async def get_pending_docs(
         content = document.get("content", {})
         jobs_dict = filter_jobs_by_sent(content, sent_value=True)
 
-        return ApplyContent(jobs=jobs_dict)
+        return PendingContent(jobs=jobs_dict)
 
     except Exception as e:
         raise HTTPException(
