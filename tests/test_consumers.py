@@ -10,13 +10,15 @@ from app.services.base_consumer import BaseConsumer
 async def test_career_docs_consumer_process_message_failure(mock_get_size, mock_db):
     mock_get_size.return_value = 0
     mock_db.return_value = None
-    with patch.object(career_docs_consumer, "_retrieve_content"), \
-         patch.object(career_docs_consumer, "_update_career_docs_responses"), \
-         patch.object(career_docs_consumer, "_remove_processed_entry"), \
+    with patch.object(career_docs_consumer, "_retrieve_content", new_callable=AsyncMock), \
+         patch.object(career_docs_consumer, "_update_career_docs_responses", new_callable=AsyncMock), \
+         patch.object(career_docs_consumer, "_remove_processed_entry", new_callable=AsyncMock), \
+         patch.object(career_docs_consumer, "_cleanup_redis_keys", new_callable=AsyncMock) as mock_cleanup, \
          patch.object(career_docs_consumer, "_restore_sent_status", new_callable=AsyncMock) as mock_restore:
         msg = {"success": False, "applications": {}, "user_id": 123, "mongo_id": "abc"}
         await career_docs_consumer.process_message(msg)
         mock_restore.assert_awaited_once()
+        mock_cleanup.assert_awaited_once()
 
 @pytest.mark.asyncio
 @patch("app.services.database_consumer.database_consumer.retrieve_one_batch_from_db", new_callable=AsyncMock)
@@ -24,14 +26,16 @@ async def test_career_docs_consumer_process_message_failure(mock_get_size, mock_
 async def test_career_docs_consumer_process_message_success(mock_get_size, mock_db):
     mock_get_size.return_value = 0
     mock_db.return_value = None
-    with patch.object(career_docs_consumer, "_retrieve_content", return_value={"app_1": {}}), \
+    with patch.object(career_docs_consumer, "_retrieve_content", new_callable=AsyncMock, return_value={"app_1": {}}), \
          patch.object(career_docs_consumer, "_update_career_docs_responses", new_callable=AsyncMock), \
          patch.object(career_docs_consumer, "_remove_processed_entry", new_callable=AsyncMock) as mock_remove, \
+         patch.object(career_docs_consumer, "_cleanup_redis_keys", new_callable=AsyncMock) as mock_cleanup, \
          patch.object(career_docs_consumer, "_restore_sent_status", new_callable=AsyncMock) as mock_restore:
         msg = {"success": True, "applications": {}, "user_id": 123, "mongo_id": "abc"}
         await career_docs_consumer.process_message(msg)
         mock_remove.assert_awaited_once()
         mock_restore.assert_not_awaited()
+        mock_cleanup.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_application_manager_consumer_process_message():

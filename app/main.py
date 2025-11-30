@@ -30,12 +30,11 @@ async def lifespan(app: FastAPI):
 
     # Start background tasks
     try:
-        #job_consumer_task = asyncio.create_task(consume_jobs(mongo_client, rabbit_client, settings))
         career_docs_response_task = asyncio.create_task(career_docs_consumer.start())
         application_manager_notification_task = asyncio.create_task(application_manager_consumer.start())
         timed_queue_refiller_task = asyncio.create_task(timed_queue_refiller.start())
-        logger.info("Job consumer task started", event_type="lifespan.job_consumer.start")
         logger.info("Career docs response consumer task started", event_type="lifespan.career_docs_response.start")
+        logger.info("Application manager consumer task started", event_type="lifespan.application_manager.start")
         logger.info("Timed queue refiller task started", event_type="lifespan.timed_queue_refiller.start")
     except Exception as e:
         logger.exception(

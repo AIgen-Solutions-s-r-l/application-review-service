@@ -1,4 +1,6 @@
 import os
+import secrets
+import warnings
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -35,9 +37,28 @@ class Settings(BaseSettings):
     application_manager_queue: str = os.getenv("APPLICATION_MANAGER_QUEUE", "middleware_notification_queue")
 
     # Authentication settings
-    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    secret_key: str = os.getenv("SECRET_KEY", "")
     algorithm: str = os.getenv("ALGORITHM", "HS256")
     access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Validate SECRET_KEY is set in production
+        if not self.secret_key:
+            if self.environment == "production":
+                raise ValueError(
+                    "SECRET_KEY environment variable must be set in production. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                )
+            else:
+                # Generate a random key for development with a warning
+                self.secret_key = secrets.token_hex(32)
+                warnings.warn(
+                    "SECRET_KEY not set. Using randomly generated key. "
+                    "Sessions will not persist across restarts. "
+                    "Set SECRET_KEY environment variable for production.",
+                    UserWarning
+                )
 
     # Environment-specific logging configuration
     @property

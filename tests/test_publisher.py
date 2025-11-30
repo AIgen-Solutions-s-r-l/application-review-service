@@ -1,15 +1,15 @@
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from app.services.career_docs_publisher import career_docs_publisher
 from app.core.exceptions import JobApplicationError
 from app.schemas.app_jobs import JobsToApplyInfo
 
 @pytest.mark.asyncio
-@patch.object(career_docs_publisher, "jobs_redis_client", autospec=True)
+@patch.object(career_docs_publisher, "jobs_redis_client")
 async def test_publish_applications_success(m_redis):
-    m_redis.is_connected.return_value = True
-    m_redis.get.return_value = None
-    m_redis.set.return_value = True
+    m_redis.is_connected = AsyncMock(return_value=True)
+    m_redis.get = AsyncMock(return_value=None)
+    m_redis.set = AsyncMock(return_value=True)
     with patch.object(career_docs_publisher.pdf_resumes_collection, "update_one", new_callable=AsyncMock) as m_up:
         m_up.return_value.modified_count = 1
         info = JobsToApplyInfo(user_id=123, jobs=[{"title": "Job"}], cv_id="64cfc7f476071f6557215d57", mongo_id="abc", style="formal")
@@ -18,9 +18,9 @@ async def test_publish_applications_success(m_redis):
             m_pub.assert_awaited_once()
 
 @pytest.mark.asyncio
-@patch.object(career_docs_publisher, "jobs_redis_client", autospec=True)
+@patch.object(career_docs_publisher, "jobs_redis_client")
 async def test_publish_applications_redis_failure(m_redis):
-    m_redis.is_connected.return_value = False
+    m_redis.is_connected = AsyncMock(return_value=False)
     info = JobsToApplyInfo(user_id=123, jobs=[{"title": "Job"}], cv_id=None, mongo_id="abc", style="formal")
     with pytest.raises(JobApplicationError, match="Redis client is not connected"):
         await career_docs_publisher.publish_applications(info)

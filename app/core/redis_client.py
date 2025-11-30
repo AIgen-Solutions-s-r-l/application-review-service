@@ -1,29 +1,30 @@
 # app/core/redis_client.py
 """
-Redis client module for handling Redis connections and operations.
+Async Redis client module for handling Redis connections and operations.
 
-This module provides a RedisClient class that encapsulates Redis functionality
+This module provides an AsyncRedisClient class that encapsulates Redis functionality
 with proper error handling and logging. It supports basic Redis operations
 like connecting, getting/setting values, and managing the connection lifecycle.
 
 Example:
-    client = RedisClient(host='localhost', port=6379)
-    client.connect()
-    client.set('key', 'value')
-    value = client.get('key')
+    client = AsyncRedisClient(host='localhost', port=6379)
+    await client.connect()
+    await client.set('key', 'value')
+    value = await client.get('key')
 
 Attributes:
     logger: The logger instance for this module
 """
 
 from typing import Optional
-import redis
+import redis.asyncio as redis
 from app.log.logging import logger
 from app.core.config import settings
 
-class RedisClient:
+
+class AsyncRedisClient:
     """
-    A class to handle Redis connections and operations with strong error handling and logging.
+    An async class to handle Redis connections and operations with strong error handling and logging.
 
     Attributes:
         host (str): The Redis server host.
@@ -34,12 +35,13 @@ class RedisClient:
 
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0, password: str = "") -> None:
         """
-        Initializes the RedisClient with the specified host, port, and database.
+        Initializes the AsyncRedisClient with the specified host, port, and database.
 
         Args:
             host (str): The Redis server host. Defaults to 'localhost'.
             port (int): The Redis server port. Defaults to 6379.
             db (int): The Redis database number. Defaults to 0.
+            password (str): The Redis password. Defaults to empty string.
         """
         self.host = host
         self.port = port
@@ -47,28 +49,35 @@ class RedisClient:
         self.password = password
         self.connection: Optional[redis.Redis] = None
 
-    def connect(self) -> None:
+    async def connect(self) -> None:
         """
         Establishes a connection to the Redis server.
 
         Logs an error if the connection fails.
         """
+        if self.connection:
+            return  # Already connected
         try:
             self.connection = redis.Redis(
-                host=self.host, port=self.port, db=self.db, password=self.password)
+                host=self.host,
+                port=self.port,
+                db=self.db,
+                password=self.password if self.password else None,
+                decode_responses=False
+            )
             # Test the connection
-            self.connection.ping()
+            await self.connection.ping()
             logger.info("Connected to Redis successfully.", event_type="REDIS_CONNECTION")
         except redis.ConnectionError as e:
             logger.exception(
-                "Error connecting to Redis with error {error}", 
-                error=e, 
-                event_type="REDIS_CONNECTION", 
+                "Error connecting to Redis with error {error}",
+                error=e,
+                event_type="REDIS_CONNECTION",
                 error_type=type(e).__name__,
                 error_details=str(e))
             self.connection = None
 
-    def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> Optional[str]:
         """
         Retrieves a value from Redis by key.
 
@@ -79,16 +88,18 @@ class RedisClient:
             Optional[str]: The value associated with the key, or None if not found or on error.
         """
         if not self.connection:
+            await self.connect()
+        if not self.connection:
             logger.error("No Redis connection available.", event_type="REDIS_CONNECTION")
             return None
         try:
-            value = self.connection.get(key)
+            value = await self.connection.get(key)
             return value.decode('utf-8') if value else None
         except redis.RedisError as e:
             logger.error(f"Error getting key {key} from Redis: {e}", event_type="REDIS_OPERATION")
             return None
 
-    def set(self, key: str, value: str) -> bool:
+    async def set(self, key: str, value: str) -> bool:
         """
         Sets a value in Redis for a given key.
 
@@ -100,17 +111,19 @@ class RedisClient:
             bool: True if the operation was successful, False otherwise.
         """
         if not self.connection:
+            await self.connect()
+        if not self.connection:
             logger.error("No Redis connection available.", event_type="REDIS_CONNECTION")
             return False
         try:
-            self.connection.set(key, value)
+            await self.connection.set(key, value)
             logger.info(f"Key {key} set successfully.", event_type="REDIS_OPERATION")
             return True
         except redis.RedisError as e:
             logger.error(f"Error setting key {key} in Redis: {e}", event_type="REDIS_OPERATION")
             return False
-        
-    def delete(self, key: str) -> bool:
+
+    async def delete(self, key: str) -> bool:
         """
         Deletes a key from Redis.
 
@@ -121,10 +134,12 @@ class RedisClient:
             bool: True if the key was deleted, False otherwise.
         """
         if not self.connection:
+            await self.connect()
+        if not self.connection:
             logger.error("No Redis connection available.", event_type="REDIS_CONNECTION")
             return False
         try:
-            result = self.connection.delete(key)
+            result = await self.connection.delete(key)
             if result == 1:
                 logger.info(f"Key {key} deleted successfully.", event_type="REDIS_OPERATION")
                 return True
@@ -134,8 +149,8 @@ class RedisClient:
         except redis.RedisError as e:
             logger.error(f"Error deleting key {key} from Redis: {e}", event_type="REDIS_OPERATION")
             return False
-        
-    def is_connected(self) -> bool:
+
+    async def is_connected(self) -> bool:
         """
         Checks if the Redis client is connected to the Redis server.
 
@@ -146,14 +161,14 @@ class RedisClient:
             return False
         try:
             # Attempt to ping the Redis server
-            self.connection.ping()
+            await self.connection.ping()
             return True
         except redis.RedisError as e:
             logger.error(f"Redis connection lost: {e}", event_type="REDIS_CONNECTION")
             self.connection = None
             return False
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Closes the Redis connection.
 
@@ -161,11 +176,15 @@ class RedisClient:
         """
         if self.connection:
             try:
-                self.connection.close()
+                await self.connection.close()
                 logger.info("Redis connection closed.", event_type="REDIS_CONNECTION")
             except redis.RedisError as e:
                 logger.error(f"Error closing Redis connection: {e}", event_type="REDIS_CONNECTION")
 
 
-redis_client = RedisClient(host=settings.redis_host, port=settings.redis_port, db=settings.redis_db, password=settings.redis_password)
-redis_client.connect()
+redis_client = AsyncRedisClient(
+    host=settings.redis_host,
+    port=settings.redis_port,
+    db=settings.redis_db,
+    password=settings.redis_password
+)

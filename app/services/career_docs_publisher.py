@@ -23,7 +23,7 @@ class CareerDocsPublisher(BasePublisher):
     def get_queue_name(self):
         return settings.career_docs_queue
     
-    def _generate_unique_uuid(self):
+    async def _generate_unique_uuid(self):
         """
         Generates a unique UUID that is not already present in the provided mapping.
 
@@ -36,7 +36,7 @@ class CareerDocsPublisher(BasePublisher):
         while True:
             unique_uuid = str(uuid.uuid4())
             try:
-                if self.jobs_redis_client.get(unique_uuid) is None:
+                if await self.jobs_redis_client.get(unique_uuid) is None:
                     return unique_uuid
             except Exception as e:
                 logger.exception(
@@ -61,7 +61,7 @@ class CareerDocsPublisher(BasePublisher):
             JobApplicationError: If notification fails.
         """
 
-        if not self.jobs_redis_client.is_connected():
+        if not await self.jobs_redis_client.is_connected():
             logger.error("One or more Redis clients are not connected", event_type="publish_applications")
             raise JobApplicationError("Redis client is not connected")
 
@@ -69,19 +69,19 @@ class CareerDocsPublisher(BasePublisher):
         style_for_all = jobsToApplyInfo.style
 
         for job in jobsToApplyInfo.jobs:
-            correlation_id = self._generate_unique_uuid()
+            correlation_id = await self._generate_unique_uuid()
             job["correlation_id"] = correlation_id
             job["style"] = style_for_all
             correlation_ids.append(correlation_id)
 
             try:
                 redis_value = {key: value for key, value in job.items() if value is not None}
-                success = self.jobs_redis_client.set(correlation_id, json.dumps(redis_value))
+                success = await self.jobs_redis_client.set(correlation_id, json.dumps(redis_value))
 
                 if not success:
                     logger.error(f"Failed to store correlation ID {correlation_id} in mapping", event_type="publish_applications")
                     raise JobApplicationError("Failed to store correlation ID in mapping")
-                
+
             except (TypeError, ValueError) as e:
                 logger.error(f"Failed to serialize data for correlation ID {correlation_id}", event_type="publish_applications")
                 raise JobApplicationError("Failed to serialize data for correlation ID")

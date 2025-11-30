@@ -33,5 +33,5 @@ class BaseConsumer(ABC):
 
     async def start(self):
         """Start the applier service."""
-        print(f"Starting {self.queue_name} consumer...")
+        logger.info(f"Starting {self.queue_name} consumer...", event_type="consumer_start")
         await self.consume()

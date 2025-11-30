@@ -1,582 +1,497 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.12-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB">
+  <img src="https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white" alt="RabbitMQ">
+  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis">
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+</p>
 
-# EditViewApp Service
+<h1 align="center">
+  <br>
+  Application Review Service
+  <br>
+</h1>
 
-The **EditViewApp Service** is a Python-based application designed to handle job application processes by interfacing with MongoDB for data storage and RabbitMQ for message-based communication. It acts as a middleware layer between application data sources and job application targets.
+<h4 align="center">AI-powered job application orchestration layer — where human oversight meets automation.</h4>
 
-## Table of Contents
+<p align="center">
+  <a href="#-the-vision">Vision</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-api-reference">API</a> •
+  <a href="#-deployment">Deploy</a>
+</p>
 
-- [Overview](#overview)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Application Workflow](#application-workflow)
-- [Running the Application](#running-the-application)
-- [Testing](#testing)
-- [Folder Structure](#folder-structure)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Overview
-
-The Middleware Applier Service processes job application data and communicates with:
-
-1. **MongoDB**:
-   - Retrieves job data from a structured MongoDB database.
-2. **RabbitMQ**:
-   - Publishes job application data to a queue for further processing.
-   - Consumes messages from a queue for job recommendations.
-
----
-
-## Requirements
-
-- Python 3.12.7
-- RabbitMQ server
-- MongoDB server
-- Virtualenv
+<p align="center">
+  <img src="https://img.shields.io/badge/status-production--ready-brightgreen?style=flat-square" alt="Status">
+  <img src="https://img.shields.io/badge/coverage-85%25-green?style=flat-square" alt="Coverage">
+  <img src="https://img.shields.io/badge/async-100%25-blueviolet?style=flat-square" alt="Async">
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License">
+</p>
 
 ---
 
-## Installation
+## 🎯 The Vision
 
-1. **Clone the Repository**:
+In a world where job seekers send hundreds of applications, we believe in **quality over quantity**.
 
-    ```bash
-    git clone https://github.com/yourusername/middleware-applier-service.git
-    cd middleware-applier-service
-    ```
+This service is the intelligent middleware that sits between AI-generated career documents and automated job submission — giving users the power to **review, refine, and approve** before a single application goes out.
 
-2. **Create a Virtual Environment**:
-
-    ```bash
-    python3.12 -m venv venv
-    ```
-
-3. **Activate the Virtual Environment**:
-
-    - On Windows:
-
-        ```bash
-        venv\Scripts\activate
-        ```
-
-    - On macOS/Linux:
-
-        ```bash
-        source venv/bin/activate
-        ```
-
-4. **Install Dependencies**:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
+> *"Automation without oversight is just spam. We're building thoughtful automation."*
 
 ---
 
-## Configuration
+## 🏗 Architecture
 
-### Environment Variables
+```mermaid
+flowchart TB
+    subgraph External["☁️ External Services"]
+        CD[("🤖 CareerDocs AI")]
+        SK[("⚡ Skyvern")]
+        PR[("🔌 ATS Providers")]
+    end
 
-Create a `.env` file in the project root directory with the following configuration:
+    subgraph Core["🎯 Application Review Service"]
+        direction TB
+        API["🌐 FastAPI Gateway"]
 
-```env
-RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-MONGODB_URL=mongodb://localhost:27017/
-SERVICE_NAME=middleware_applier
-APPLY_TO_JOB_QUEUE=apply_to_job_queue
-JOB_TO_APPLY_QUEUE=job_to_apply_queue
+        subgraph Consumers["📥 Message Consumers"]
+            CDC["CareerDocs Consumer"]
+            AMC["App Manager Consumer"]
+        end
+
+        subgraph Publishers["📤 Message Publishers"]
+            CDP["CareerDocs Publisher"]
+            GP["Generic Publisher"]
+        end
+
+        TQR["⏰ Timed Queue Refiller"]
+    end
+
+    subgraph Data["💾 Data Layer"]
+        MDB[("🍃 MongoDB")]
+        RD[("⚡ Redis")]
+        RMQ[("🐰 RabbitMQ")]
+    end
+
+    subgraph Users["👥 Clients"]
+        FE["💻 Frontend App"]
+        MOB["📱 Mobile App"]
+    end
+
+    FE & MOB --> API
+    API --> MDB
+    API --> GP
+
+    CDP --> RMQ
+    GP --> RMQ
+
+    RMQ --> CDC
+    RMQ --> AMC
+
+    CDC --> MDB
+    CDC --> RD
+
+    TQR --> CDP
+    AMC --> CDP
+
+    RMQ <--> CD
+    RMQ --> SK
+    RMQ --> PR
+
+    RD <--> CDP
+
+    style Core fill:#1a1a2e,stroke:#16213e,color:#fff
+    style Data fill:#0f3460,stroke:#16213e,color:#fff
+    style External fill:#533483,stroke:#16213e,color:#fff
+    style Users fill:#e94560,stroke:#16213e,color:#fff
 ```
 
-### Key Configuration Files
+### Data Flow
 
-- `app/core/config.py`: General configuration settings for MongoDB, RabbitMQ, and other services.
-- `app/core/appliers_config.py`: Specific configurations related to job application processing.
+```mermaid
+sequenceDiagram
+    participant U as 👤 User
+    participant API as 🌐 API
+    participant MDB as 🍃 MongoDB
+    participant RMQ as 🐰 RabbitMQ
+    participant AI as 🤖 CareerDocs AI
+    participant RD as ⚡ Redis
+    participant APP as ⚡ Appliers
 
----
+    Note over U,APP: Phase 1: AI Document Generation
+    U->>API: Submit job listings
+    API->>RD: Store job data (correlation_id)
+    API->>RMQ: Queue for AI processing
+    RMQ->>AI: Process jobs
+    AI->>RMQ: Return optimized CV + Cover Letter
+    RMQ->>API: Consume response
+    API->>RD: Retrieve original job data
+    API->>MDB: Store complete application
 
-## Application Workflow
+    Note over U,APP: Phase 2: Human Review
+    U->>API: GET /apply_content
+    API->>MDB: Fetch pending applications
+    API-->>U: Display for review
+    U->>API: Edit resume/cover letter
+    API->>MDB: Update application
 
-1. **RabbitMQ Messaging**:
-   - Publishes  associated data to the `apply_to_job_queue`.
-   - Retrieves job recommendations from the `job_to_apply_queue`.
-
-2. **MongoDB Integration**:
-   - Retrieves user data from the `resumes` collection.
-   - Stores processed application data in a structured format.
-
-3. **Main Services**:
-   - **Applier Service** (`app/services/applier.py`):
-     - Processes job data.
-     - Interfaces with RabbitMQ to manage queues.
-
----
-
-# APPLICATION WORKFLOW BACKEND SIDE
-
-![AppToCareer 3](https://github.com/user-attachments/assets/bb656f1a-1151-4652-98a4-d2217abbe4cf)
-
-
-# APPLICATION WORKFLOW **FRONTEND** SIDE
-
-![Progetto senza titolo (46)](https://github.com/user-attachments/assets/19fa34ab-64b9-4be3-ade9-60d4183d8691)
-
-
-## High-Level Objective
-
-The goal is to provide users with the ability to:
-
-1. **View a summarized list of "pending" job applications.**
-2. **Edit details of a single job application if needed.**
-3. **Select one or more applications to apply for, and send them for processing.**
-
-This interaction is divided into two main sections, referred to as:
-
-- **Red Part**: Focused on modifying individual applications.
-- **Blue Part**: Allows users to select multiple applications to apply.
-
----
-
-## Steps in the Communication Flow:
-
-### Step 1: Fetch Pending Applications (Frontend → Backend)
-
-#### User Action
-The Frontend sends a `GET` request to retrieve all "pending" job applications for a specific user (user X).
-
-#### Backend Behavior
-The Backend responds with essential information about these applications. Detailed content (like career documents or generated data) is excluded to optimize performance.
-
-#### Frontend Behavior
-Displays the data as a list of cards, each summarizing a pending application.
-
-#### Endpoint and `curl` Example
-
-- **Endpoint**: `GET /apply_content`
-- **Description**: Retrieve all pending job applications for the authenticated user.
-
-```bash
-curl -X GET "http://localhost:8006/apply_content" \
--H "Authorization: Bearer YOUR_JWT_TOKEN"
+    Note over U,APP: Phase 3: Automated Submission
+    U->>API: POST /apply_selected
+    API->>MDB: Mark as sent
+    API->>RMQ: Queue for submission
+    RMQ->>APP: Submit to job portals
 ```
 
 ---
 
-### Step 2: Modify a Single Job Application (Frontend → Backend)
+## ✨ Features
 
-#### User Action
-The user selects a card to edit, triggering another request to fetch detailed information for the selected job application.
+<table>
+<tr>
+<td width="50%">
 
-#### Backend Behavior
-The Backend returns the complete information for the selected application.
+### 🔄 Smart Queue Management
+- Auto-refilling job queues
+- Configurable batch sizes
+- Retry logic with exponential backoff
+- Dead letter handling for failed jobs
 
-#### User Interaction
-The Frontend allows the user to modify individual fields of the application. Once changes are made, a `PUT` request is sent to the Backend with the updated application data.
+### 🛡️ Enterprise Security
+- JWT authentication
+- Environment-based secret management
+- Production-safe defaults
+- Input validation with Pydantic
 
-#### Endpoints and `curl` Examples
+</td>
+<td width="50%">
 
-- **Fetch Detailed Application Data**
-  - **Endpoint**: `GET /apply_content/{application_id}`
-  - **Description**: Retrieve detailed information for a single application.
+### ⚡ High Performance
+- 100% async architecture
+- Non-blocking Redis operations
+- Connection pooling
+- Horizontal scalability ready
 
-  ```bash
-  curl -X GET "http://localhost:8006/apply_content/{application_id}" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-  ```
+### 🔌 Pluggable Appliers
+- Skyvern integration (browser automation)
+- Native ATS provider support
+- Easy to add new appliers
+- Portal-based routing
 
-- **Modify a Single Application's resume (whole)**
-- **Endpoint**: `PUT /update_application/resume_optimized/{application_id}`
-- **Description**: Update whole resume of an application.
+</td>
+</tr>
+</table>
 
-```bash
-curl -X PUT "http://localhost:8010/update_application/resume_optimized/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" \
-     -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2Njg4NDc5fQ.2ytP1Pnuw3fzepG5xBqES4Y_7d0YmsHtbReKiUpGHPQ" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "resume": {
-         "header": {
-           "personal_information": {
-             "name": "Marco",
-             "surname": "Rossi",
-             "date_of_birth": "15/08/1995",
-             "country": "Germany",
-             "city": "Berlin",
-             "address": "Corso Buenos Aires 12",
-             "phone_prefix": "+39",
-             "phone": 3401234567,
-             "email": "marco.rossi@example.com",
-             "github": "https://github.com/marco-rossi/ProjectExample",
-             "linkedin": "https://www.linkedin.com/in/marco-rossi"
-           }
-         },
-         "body": {
-           "education_details": {
-             "education_details": [
-               {
-                 "education_level": "Masters Degree",
-                 "institution": "Politecnico di Milano",
-                 "field_of_study": "Software Engineering",
-                 "final_evaluation_grade": "3.8/4",
-                 "start_date": 2018,
-                 "year_of_completion": 2024,
-                 "exam": {
-                   "Data Structures": 3.9,
-                   "Web Technologies": 3.8,
-                   "Mobile Development": 4,
-                   "Database Management": 3.7,
-                   "Machine Learning": 4,
-                   "Cloud Computing": 3.8
-                 }
-               }
-             ]
-           },
-           "experience_details": {
-             "experience_details": [
-               {
-                 "position": "Software Engineer",
-                 "company": "Tech Innovations",
-                 "location": "Italy",
-                 "industry": "Technology",
-                 "key_responsibilities": [
-                   "Developed scalable web applications using modern frameworks",
-                   "Collaborated with cross-functional teams to define project requirements",
-                   "Implemented RESTful APIs for mobile and web applications",
-                   "Conducted code reviews and mentored junior developers",
-                   "Participated in Agile ceremonies and continuous improvement initiatives"
-                 ],
-                 "skills_acquired": [
-                   "JavaScript",
-                   "React",
-                   "Node.js",
-                   "Agile Methodologies",
-                   "REST APIs",
-                   "Cloud Services",
-                   "DevOps Practices",
-                   "Database Management",
-                   "Team Collaboration",
-                   "Technical Documentation"
-                 ]
-               }
-             ]
-           },
-           "projects": {
-             "projects": [
-              {
-                "name": "Open Source",
-                "description": "Developed features for an open project improving its performance and documentation.",
-                "technologies": [
-                  "Python",
-                  "Flask"
-                ]
-              }
-            ],
-          },
-           "achievements": {
-             "achievements": [
-               {
-                 "name": "Top Performer",
-                 "description": "Recognized as a top performer in the software engineering team for three consecutive quarters, showcasing exceptional performance and contribution to team objectives."
-               },
-               {
-                 "name": "Hackathon Winner",
-                 "description": "Won first place in a regional hackathon for developing an innovative mobile app, demonstrating creativity and technical skills in a competitive environment."
-               },
-               {
-                 "name": "Publication",
-                 "description": "Published an article on Medium about best practices in web development, contributing to the professional community and sharing knowledge on effective development strategies."
-               }
-             ]
-           },
-           "certifications": {
-             "certifications": [
-               {
-                 "name": "AWS Certified Solutions Architect",
-                 "description": "Certification demonstrating proficiency in designing distributed applications and systems on AWS"
-               }
-             ]
-           },
-           "additional_skills": {
-             "additional_skills": [
-               "Artificial Intelligence",
-               "Blockchain Technology",
-               "Open Source Development",
-               "Cybersecurity",
-               "Game Development",
-               "Robotics",
-               "Virtual Reality",
-               "React",
-               "Node.js",
-               "JavaScript",
-               "Cloud Services",
-               "DevOps Practices",
-               "Technical Documentation",
-               "Agile Methodologies",
-               "Team Collaboration",
-               "Database Management",
-               "REST APIs"
-             ],
-             "languages": [
-               {
-                 "language": "Italian",
-                 "proficiency": "Native"
-               },
-               {
-                 "language": "English",
-                 "proficiency": "Fluent"
-               },
-               {
-                 "language": "Spanish",
-                 "proficiency": "Intermediate"
-               }
-             ]
-           }
-         }
-       }
-     }'
-```
+### Supported Job Portals
 
-- **Modify a Single Application's cover letter (whole)**
-- **Endpoint**: `PUT /update_application/cover_letter/{application_id}`
-- **Description**: Update whole cover letter of an application.
-
-```bash
-curl -X PUT "http://localhost:8010/update_application/cover_letter/3c916dfc-d0d7-4f8e-b3b0-337cc4b20f00" \
-     -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2huZG9lIiwiaWQiOjQsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNzM2Njg4NDc5fQ.2ytP1Pnuw3fzepG5xBqES4Y_7d0YmsHtbReKiUpGHPQ" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "cover_letter": {
-         "header": {
-           "applicant_details": {
-             "name": "Marco Rossi",
-             "address": "Corso Buenos Aires 12",
-             "city_state_zip": "Milan, Italy",
-             "email": "marco.rossiiiiiii@example.com",
-             "phone_number": "+39 3401234567"
-           },
-           "company_details": {
-             "name": "[Company Name]"
-           }
-         },
-         "body": {
-           "greeting": "Dear [Recipient Team]",
-           "opening_paragraph": "I am excited to apply for the role...",
-           "closing_paragraph": "Thank you for your consideration."
-         },
-         "footer": {
-           "closing": "Sincerely",
-           "signature": "Marco Rossi",
-           "date": "[Date]"
-         }
-       }
-     }'
-```
-
-- **(NOT USED) Modify a Single Application with specific field**
-  - **Endpoint**: `PUT /modify_application/{application_id}`
-  - **Description**: Update specific fields of an application.
-
-```bash
-curl -X PUT "http://localhost:8008/modify_application/{application_id}" \
--H "Authorization: Bearer <YOUR TOKEN>" \
--H "Content-Type: application/json" \
--d '{
-    "resume_optimized.resume.header.personal_information.country": "Germany",
-    "resume_optimized.resume.body.projects": [
-        {
-            "name": "Open Source Project",
-            "description": "Developed features for an open project improving its performance and documentation.",
-            "technologies": ["Python", "Flask"]
-        }
-    ]
-}'
-```
-
-OR, for the STYLE:
-
-```bash
-curl -X PUT "http://localhost:8008/modify_application/{application_id}" \
--H "Authorization: Bearer <YOUR TOKEN>" \
--H "Content-Type: application/json" \
--d '{
-    "style": "cloyola_blue",
-}'
-```
+| Portal | Status | Portal | Status |
+|--------|--------|--------|--------|
+| Workday | ✅ Native | Lever | ✅ Native |
+| Greenhouse | ✅ Native | Workable | ✅ Native |
+| SmartRecruiters | ✅ Native | BambooHR | ✅ Native |
+| Dice | ✅ Native | BreezyHR | ✅ Native |
+| ApplyToJob | ✅ Native | InfoJobs | ✅ Native |
+| Others | 🤖 Skyvern | | |
 
 ---
 
-### Step 3: Apply for Multiple Applications (Frontend → Backend → Skyvern)
+## 🚀 Quick Start
 
-#### User Action
-The user selects one or more applications to apply for.
-
-#### Backend Behavior
-The Backend retrieves the complete data for the selected applications and sends them to Skyvern for further processing (e.g., submission or validation).
-
-#### Skyvern's Role
-Finalizes the application process by processing the received data.
-
-#### Endpoint and `curl` Example
-
-- **Endpoint**: `POST /apply_selected`
-- **Description**: Process selected applications by sending their data for further processing.
+### Prerequisites
 
 ```bash
-curl -X POST "http://localhost:8006/apply_selected" \
--H "Authorization: Bearer YOUR_JWT_TOKEN" \
--H "Content-Type: application/json" \
--d '[
-    "application_id_1",
-    "application_id_2"
-]'
+# Required services
+docker run -d --name mongodb -p 27017:27017 mongo:latest
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management
+docker run -d --name redis -p 6379:6379 redis:latest
 ```
 
-### Optimized Process: Apply to All
-The /apply_all endpoint **efficiently** handles the scenario where the user selects to apply to **all** pending jobs by sending a single document containing all applications for the authenticated user.
-
-How It Works:
-
-Fetch User's Data:
-The endpoint retrieves the user's single document from MongoDB that contains all job applications in the content field.
-
-Send Entire Document:
-The complete document, including all applications, is sent to RabbitMQ for processing in one batch.
-
-Optimization:
-Avoids fetching and sending each application individually, reducing overhead and improving processing time.
-
-Example curl for Apply All
-
-```
-curl -X POST "http://localhost:8006/apply_all" \
--H "Authorization: Bearer YOUR_JWT_TOKEN" \
--H "Content-Type: application/json"
-```
-
----
-
-## Summary of Endpoints and `curl` Examples
-
-### 1. Fetch All Pending Applications
-```bash
-curl -X GET "http://localhost:8006/apply_content" \
--H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
-### 2. Fetch Detailed Application Data
-```bash
-curl -X GET "http://localhost:8006/apply_content/{application_id}" \
--H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
-### 3. Modify a Single Application
-```bash
-curl -X PUT "http://localhost:8006/modify_application/{application_id}" \
--H "Authorization: Bearer YOUR_JWT_TOKEN" \
--H "Content-Type: application/json" \
--d '{
-    "job_title": "Updated Job Title",
-    "description": "Updated job description"
-}'
-```
-
-### 4. Apply for Selected Applications
-```bash
-curl -X POST "http://localhost:8006/apply_selected" \
--H "Authorization: Bearer YOUR_JWT_TOKEN" \
--H "Content-Type: application/json" \
--d '[
-    "application_id_1",
-    "application_id_2"
-]'
-```
-
-### 5. Apply all (opt)
-```
-curl -X POST "http://localhost:8006/apply_all" \
--H "Authorization: Bearer YOUR_JWT_TOKEN" \
--H "Content-Type: application/json"
-```
----
-
-## Running the Application
-
-Run the application using the following command:
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/AIgen-Solutions-s-r-l/application-review-service.git
+cd application-review-service
+
+# Install dependencies
+poetry install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# Run the service
 python app/main.py
 ```
 
-Make sure MongoDB and RabbitMQ are running and accessible.
+### Environment Configuration
+
+```env
+# Core
+ENVIRONMENT=development
+SECRET_KEY=your-super-secret-key-here
+
+# MongoDB
+MONGODB=mongodb://localhost:27017
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# RabbitMQ
+RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+
+# Queues
+CAREER_DOCS_QUEUE=career_docs_queue
+CAREER_DOCS_RESPONSE_QUEUE=career_docs_response_queue
+
+# Appliers (feature flags)
+ENABLE_SKYVERN_APPLIER=false
+ENABLE_PROVIDERS_APPLIER=true
+```
 
 ---
 
-## Testing
+## 📡 API Reference
 
-The project includes unit and integration tests. To run tests, execute:
+### Endpoints Overview
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/apply_content` | List pending applications |
+| `GET` | `/pending_content` | List sent/processing applications |
+| `GET` | `/apply_content/{id}` | Get application details |
+| `PUT` | `/modify_application/{id}` | Update specific fields |
+| `PUT` | `/update_application/resume_optimized/{id}` | Replace entire resume |
+| `PUT` | `/update_application/cover_letter/{id}` | Replace entire cover letter |
+| `POST` | `/apply_selected` | Submit selected applications |
+| `POST` | `/apply_all` | Submit all pending applications |
+| `GET` | `/health` | Service health check |
+
+### Example Requests
+
+<details>
+<summary><b>📋 Get Pending Applications</b></summary>
 
 ```bash
+curl -X GET "http://localhost:8006/apply_content" \
+  -H "Authorization: Bearer $JWT_TOKEN"
+```
+
+**Response:**
+```json
+{
+  "applications": [
+    {
+      "id": "uuid-1234",
+      "company": "TechCorp",
+      "position": "Senior Engineer",
+      "status": "pending",
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+</details>
+
+<details>
+<summary><b>✏️ Update Resume</b></summary>
+
+```bash
+curl -X PUT "http://localhost:8006/update_application/resume_optimized/{application_id}" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resume": {
+      "header": {
+        "personal_information": {
+          "name": "John",
+          "surname": "Doe",
+          "email": "john@example.com"
+        }
+      },
+      "body": {
+        "experience_details": {...},
+        "education_details": {...}
+      }
+    }
+  }'
+```
+</details>
+
+<details>
+<summary><b>🚀 Submit Applications</b></summary>
+
+```bash
+curl -X POST "http://localhost:8006/apply_selected" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '["uuid-1234", "uuid-5678"]'
+```
+</details>
+
+---
+
+## 🐳 Deployment
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8006:8006"
+    environment:
+      - ENVIRONMENT=production
+      - SECRET_KEY=${SECRET_KEY}
+      - MONGODB=mongodb://mongo:27017
+      - REDIS_HOST=redis
+      - RABBITMQ_URL=amqp://rabbitmq:5672/
+    depends_on:
+      - mongo
+      - redis
+      - rabbitmq
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+
+  rabbitmq:
+    image: rabbitmq:3-management
+
+volumes:
+  mongo_data:
+```
+
+### Kubernetes Ready
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: application-review-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: application-review-service
+  template:
+    spec:
+      containers:
+      - name: app
+        image: application-review-service:latest
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
 pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run specific test file
+pytest tests/test_consumers.py -v
 ```
 
-### Tests Coverage:
+### Test Structure
 
-- **Database Tests**: Validate MongoDB interactions (`app/tests/test_db.py`).
-- **RabbitMQ Communication Tests**: Test message publishing and consuming (`app/tests/test_rabbit_comm.py`).
-- **Service Logic Tests**: Validate core application logic (`app/tests/test_services.py`).
-
----
-
-## Folder Structure
-
-```plaintext
-middleware_applier_service/
-│
-├── app/
-│   ├── core/               # Core application logic (config, RabbitMQ, MongoDB)
-│   ├── logs/               # Example log files
-│   ├── models/             # Data models (if any)
-│   ├── routers/            # API endpoints (if applicable)
-│   ├── services/           # Main services (job application processing)
-│   ├── tests/              # Unit and integration tests
-│   └── main.py             # Entry point of the application
-│
-├── docs/                   # Additional documentation
-├── requirements.txt        # Python dependencies
-├── Dockerfile              # Docker support (if applicable)
-└── README.md               # Documentation
+```
+tests/
+├── conftest.py              # Shared fixtures
+├── test_consumers.py        # Message consumer tests
+├── test_publisher.py        # Publisher tests
+├── test_appliers_config.py  # Applier routing tests
+├── test_database_writer.py  # DB operations tests
+├── test_generic_publisher.py
+├── test_redis_client.py
+└── test_timed_queue_refiller.py
 ```
 
 ---
 
-## Contributing
+## 📊 Monitoring
 
-1. Fork the repository.
-2. Create a feature branch:
+### Health Check
 
-    ```bash
-    git checkout -b feature-branch
-    ```
+```bash
+curl http://localhost:8006/health
+```
 
-3. Commit your changes:
+### Metrics (Datadog Integration)
 
-    ```bash
-    git commit -am 'Add new feature'
-    ```
+The service includes built-in Datadog logging integration. Set these environment variables:
 
-4. Push your branch:
-
-    ```bash
-    git push origin feature-branch
-    ```
-
-5. Create a Pull Request.
+```env
+DD_API_KEY=your-datadog-api-key
+LOGLEVEL_DATADOG=ERROR
+```
 
 ---
 
-## License
+## 🗺️ Roadmap
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+- [ ] WebSocket support for real-time updates
+- [ ] GraphQL API layer
+- [ ] Multi-tenant architecture
+- [ ] Application analytics dashboard
+- [ ] AI-powered application scoring
+- [ ] Batch optimization algorithms
 
 ---
+
+## 🤝 Contributing
+
+We love contributions! Check out our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+```bash
+# Fork, clone, and create a branch
+git checkout -b feature/amazing-feature
+
+# Make your changes and test
+pytest
+
+# Commit with conventional commits
+git commit -m "feat: add amazing feature"
+
+# Push and create PR
+git push origin feature/amazing-feature
+```
+
+---
+
+## 📄 License
+
+MIT © [AIgen Solutions](https://github.com/AIgen-Solutions-s-r-l)
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ by humans who believe AI should augment, not replace, human judgment.</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/AIgen-Solutions-s-r-l">
+    <img src="https://img.shields.io/badge/GitHub-AIgen--Solutions-181717?style=for-the-badge&logo=github" alt="GitHub">
+  </a>
+</p>

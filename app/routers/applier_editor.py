@@ -1,11 +1,11 @@
 import datetime
-import json
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Any, List, Dict
 from app.core.rabbitmq_client import rabbit_client
 from app.core.auth import get_current_user
 from app.core.mongo import get_mongo_client
 from app.models.resume import Resume
+from app.models.cover_letter import CoverLetter
 from app.core.rabbitmq_client import AsyncRabbitMQClient
 from app.schemas.app_jobs import ApplyContent, DetailedJobData, JobResponse, PendingContent, PendingJobResponse
 
@@ -196,9 +196,6 @@ async def modify_application_content(
         if not existing_document:
             raise HTTPException(status_code=404, detail=f"Application ID {application_id} not found.")
 
-        #for field, value in updates.items():
-            #updates[field] = ensure_dict(value)
-
         # Perform the update
         update_query = {f"content.{application_id}.{field}": value for field, value in updates.items()}
         result = await collection.update_one(
@@ -254,14 +251,10 @@ async def replace_resume_optimized(
         try:
             new_resume_optimized = Resume.model_validate(resume_data)
         except Exception as validation_error:
-            print(f"Validation error: {validation_error}")
             raise HTTPException(
                 status_code=422,
                 detail=f"Invalid resume structure: {validation_error}"
             )
-
-        # Debugging: Log the parsed data
-        print(f"Validated resume data: {new_resume_optimized}")
 
         # Check if this application exists for this user
         existing_document = await collection.find_one(
@@ -300,7 +293,7 @@ async def replace_resume_optimized(
 )
 async def replace_cover_letter(
     application_id: str,
-    new_cover_letter: Dict[str, Any],
+    request: Request,
     current_user=Depends(get_current_user),
     mongo_client=Depends(get_mongo_client),
 ):
@@ -309,12 +302,12 @@ async def replace_cover_letter(
 
     Args:
         application_id (str): The unique ID of the application to update.
-        new_cover_letter (Dict[str, Any]): The new 'cover_letter' object that will overwrite the existing one.
+        request (Request): Raw request to validate input data.
         current_user: The authenticated user ID obtained from get_current_user.
         mongo_client: MongoDB client instance.
 
     Returns:
-        dict: A message confirming the operation’s success.
+        dict: A message confirming the operation's success.
 
     Raises:
         HTTPException: If the application doesn't exist or an error occurs during the update.
@@ -324,9 +317,22 @@ async def replace_cover_letter(
         db = mongo_client.get_database("resumes")
         collection = db.get_collection("career_docs_responses")
 
+        raw_data = await request.json()
+        cover_letter_data = raw_data.get("cover_letter")
+        if not cover_letter_data:
+            raise HTTPException(status_code=422, detail="Missing 'cover_letter' key in the input data.")
+
+        try:
+            validated_cover_letter = CoverLetter.model_validate(cover_letter_data)
+        except Exception as validation_error:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid cover letter structure: {validation_error}"
+            )
+
         # Check if this application exists for this user
         existing_document = await collection.find_one(
-            {"user_id": user_id, f"content.{application_id}.cover_letter.cover_letter": {"$exists": True}},
+            {"user_id": user_id, f"content.{application_id}.cover_letter": {"$exists": True}},
             {"_id": 0, f"content.{application_id}.cover_letter": 1}
         )
 
@@ -336,10 +342,13 @@ async def replace_cover_letter(
                 detail=f"Application ID {application_id} not found or missing 'cover_letter' section."
             )
 
+        # Serialize the CoverLetter model to a dictionary
+        serialized_data = validated_cover_letter.model_dump()
+
         # Replace the entire 'cover_letter' content
         result = await collection.update_one(
             {"user_id": user_id},
-            {"$set": {f"content.{application_id}.cover_letter": new_cover_letter}}
+            {"$set": {f"content.{application_id}.cover_letter.cover_letter": serialized_data}}
         )
 
         if result.matched_count == 0:
@@ -347,6 +356,8 @@ async def replace_cover_letter(
 
         return {"message": f"'cover_letter' for application ID {application_id} replaced successfully."}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -373,16 +384,16 @@ async def process_career_docs(
         # Send the entire document to the microservices
         await generic_publisher.publish_data_to_microservices(document)
 
-        # Update `sent` field to True for all applications
-        for app_id in document.keys():
-            if app_id != "user_id":
-                await collection.update_one(
-                    {"user_id": user_id},
-                    {"$set": {
-                        f"{app_id}.sent": True,
-                        f"{app_id}.timestamp": datetime.datetime.now(datetime.timezone.utc)
-                    }}
-                )
+        # Update `sent` field to True for all applications in content
+        content = document.get("content", {})
+        for app_id in content.keys():
+            await collection.update_one(
+                {"user_id": user_id},
+                {"$set": {
+                    f"content.{app_id}.sent": True,
+                    f"content.{app_id}.timestamp": datetime.datetime.now(datetime.timezone.utc)
+                }}
+            )
 
         return {"message": "Career documents processed successfully"}
 

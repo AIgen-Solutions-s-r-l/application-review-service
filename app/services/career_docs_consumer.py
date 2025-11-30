@@ -24,7 +24,7 @@ class CareerDocsConsumer(BaseConsumer):
         return settings.career_docs_response_queue
     
 
-    def _retrieve_content(self, applications: dict[str, CareerDocsData]) -> dict:
+    async def _retrieve_content(self, applications: dict[str, CareerDocsData]) -> dict:
         """
         Retrieves immutable data from redis to reconstruct application content (for each application)
 
@@ -37,10 +37,10 @@ class CareerDocsConsumer(BaseConsumer):
         job_application: CareerDocsData
 
         # Loop through both correlation_id (needed for redis) and values ({cv, cover_letter})
-        for correlation_id, job_application in applications.items(): 
-            original_data_json: str | None = self.jobs_redis_client.get(correlation_id) 
+        for correlation_id, job_application in applications.items():
+            original_data_json: str | None = await self.jobs_redis_client.get(correlation_id)
 
-            if original_data_json is None: 
+            if original_data_json is None:
                 logger.info(f"Correlation ID {correlation_id} not found in Redis mapping", event_type="REDIS_CORRELATION_ID_NOT_FOUND")
                 raise InvalidRequestError(f"Invalid correlation ID {correlation_id} in response from career_docs")
 
@@ -56,9 +56,20 @@ class CareerDocsConsumer(BaseConsumer):
 
             content[correlation_id] = complete_job_application
 
-            # We don't delete here on redis, we delete on app failure or success to avoid re-assigning UUID
-
         return content
+
+    async def _cleanup_redis_keys(self, correlation_ids: list[str]):
+        """
+        Removes correlation IDs from Redis after successful processing.
+
+        Args:
+            correlation_ids: List of correlation IDs to delete from Redis.
+        """
+        for correlation_id in correlation_ids:
+            if await self.jobs_redis_client.delete(correlation_id):
+                logger.info(f"Cleaned up Redis key: {correlation_id}", event_type="REDIS_CLEANUP")
+            else:
+                logger.warning(f"Failed to clean up Redis key: {correlation_id}", event_type="REDIS_CLEANUP_FAILED")
 
 
     async def _update_career_docs_responses(self, user_id: int, content: dict):
@@ -114,17 +125,25 @@ class CareerDocsConsumer(BaseConsumer):
 
         job_applications = CareerDocsResponse(**message)
 
+        correlation_ids = list(job_applications.applications.keys())
+
         if job_applications.success:
 
-            content = self._retrieve_content(job_applications.applications)
+            content = await self._retrieve_content(job_applications.applications)
 
             await self._update_career_docs_responses(job_applications.user_id, content)
 
             await self._remove_processed_entry(job_applications.mongo_id)
 
+            # Clean up Redis keys after successful processing
+            await self._cleanup_redis_keys(correlation_ids)
+
         else:
 
             await self._restore_sent_status(job_applications.mongo_id)
+
+            # Also clean up Redis keys on failure to prevent memory leak
+            await self._cleanup_redis_keys(correlation_ids)
 
         await self.career_docs_publisher.refill_queue()
         
